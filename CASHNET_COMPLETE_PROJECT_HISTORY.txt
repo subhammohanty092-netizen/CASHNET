@@ -204,7 +204,7 @@ SECTION 26 — FINAL VALIDATION / ENVIRONMENT STATUS
 
 Completed locally for Phase 4: `pnpm run typecheck`; `pnpm -r --if-present run test` (18 passed, 0 failed); `pnpm --filter @workspace/api-spec run codegen`; `pnpm --filter @workspace/api-server run build`; `git diff --check`.
 Pending: no DATABASE_URL, Etherscan credential, approved Esplora endpoint, TronGrid credential, psql, Docker, or local .env was available. Therefore clean migration, persistent API start, and public-address provider-to-PostgreSQL-to-graph smoke validation are pending and were not fabricated.
-Publication: local HEAD and cached origin/main resolve to `51d9cee`; local Phase 4 tag exists. Live fetch/ls-remote failed only because Windows Git returned `SEC_E_NO_CREDENTIALS`. No force-push/rewrite was attempted; remote branch/tag confirmation remains pending authenticated Git.
+Publication: the immutable Phase 4 commit is `51d9cee` and cached origin/main resolved to that commit during validation. Subsequent documentation-only checkpoint commits intentionally advance local main and require a normal push. The local Phase 4 tag exists. Live fetch/ls-remote failed only because Windows Git returned `SEC_E_NO_CREDENTIALS`. No force-push/rewrite was attempted; remote branch/tag confirmation remains pending authenticated Git.
 
 SECTION 27 — DEBUGGING HISTORY
 

@@ -4,7 +4,7 @@ Validation date: 2026-08-29. Source checkpoint: `51d9cee` / `v0.4.0-phase4`.
 
 ## Git and publication
 
-Local `HEAD` and cached `origin/main` both resolve to `51d9cee2e0eac2c2ed9a3ddc53bee9823eea2181`; the local annotated tag `v0.4.0-phase4` resolves to `308f6ce627f652e15301b9e52b3232b22a975c03`. A live `git fetch`/`git ls-remote` could not authenticate on this Windows host (`SEC_E_NO_CREDENTIALS`), so remote branch/tag verification is **pending Git credential availability**. No force-push or history rewrite was attempted. The local worktree has a pre-existing untracked `opencode.json`, deliberately left unmodified.
+The immutable Phase 4 implementation commit is `51d9cee2e0eac2c2ed9a3ddc53bee9823eea2181`; cached `origin/main` resolved to that commit during verification, and the local annotated tag `v0.4.0-phase4` resolves to `308f6ce627f652e15301b9e52b3232b22a975c03`. The subsequent documentation checkpoint(s) intentionally advance local `main` beyond that cached remote commit and must be pushed normally. A live `git fetch`/`git ls-remote` could not authenticate on this Windows host (`SEC_E_NO_CREDENTIALS`), so remote branch/tag verification is **pending Git credential availability**. No force-push or history rewrite was attempted. The local worktree has a pre-existing untracked `opencode.json`, deliberately left unmodified.
 
 ## Phase 4 review
 
