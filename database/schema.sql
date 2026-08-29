@@ -1,4 +1,4 @@
--- Portable Supabase/PostgreSQL starting point. Synthetic API mode does not require it.
+-- Portable PostgreSQL baseline. Apply all files through `pnpm --filter @workspace/db migrate`.
 create extension if not exists pgcrypto;
 create table if not exists cases (
   id uuid primary key default gen_random_uuid(),

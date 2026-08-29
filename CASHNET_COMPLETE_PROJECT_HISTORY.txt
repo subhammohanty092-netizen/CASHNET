@@ -1,0 +1,169 @@
+CASHNET COMPLETE PROJECT HISTORY
+Generated from the repository worktree, migration files, package manifests, tests, documentation, and Git history on 2026-08-29.
+
+SECTION 1 — PROJECT IDENTITY
+
+PROJECT: CASHNET
+INTENDED GITHUB REPOSITORY: https://github.com/subhammohanty092-netizen/CASHNET
+SIH MAPPING: PS26182/PS26183 as the project planning identifiers supplied for this work.
+GOAL: Provide a case-led, evidence-oriented engineering foundation for authorized financial and blockchain investigation. The implemented system keeps a synthetic demo while making authorized provider collection, persistence, provenance, RBAC, case isolation, and auditing explicit.
+INTENDED USERS: authorized investigators, supervisors, analysts, and engineers operating an approved investigative environment.
+CURRENT STATUS: Phase 0, 1, and 2 are complete. Phase 3 implementation is complete, but actual clean-PostgreSQL migration and live-provider smoke tests require an approved configured environment. Phase 4 has not started.
+
+SECTION 2 — WHY CASHNET EXISTS
+
+CASHNET began as a synthetic investigator UI/API demonstration for cybercrime-financial intelligence. The desired end-to-end workflow is:
+
+Case → wallet subject → screening/collection → normalized blockchain facts → graph → tracing → entity intelligence → VASP candidate assessment → confidence/risk → report.
+
+Implemented through Phase 3: case records, wallet subjects, authorization, collection routing, external-provider adapters, normalized chain facts, persistence, provenance, audit, and legacy synthetic reporting. Future only: graph/tracing, entity intelligence, VASP attribution, risk/ML, PS184, and production institutional systems. A provider response or address label is never a real-world identity claim.
+
+SECTION 3 — COMPLETE DEVELOPMENT HISTORY
+
+Original repository history observed before the packaging commit: initial project commits, generated API/routes work, several package/vite updates, merged external pull requests, and HEAD `b8f61cf Add dataset download and copy for elliptic data set`. The Phase 0–3 work described below was present as an uncommitted local implementation worktree at packaging start; it must be committed intact rather than reset, squashed, or recreated.
+
+PHASE 0 — reference and architecture inspection
+Objective: retain CASHNET as the root application and evaluate eight supplied repositories as reference/component sources rather than replacing CASHNET with another project.
+Starting state: React investigator UI, Express API, OpenAPI/Zod/client packages, PostgreSQL materials, synthetic in-memory analytics, and provider seams.
+Decisions: preserve `artifacts/cashnet`, `artifacts/api-server`, `lib/api-spec`, `lib/api-client-react`, `lib/api-zod`, `lib/db`, `database`, and the legacy `/api/*` surface. Clone references only under local `references/`; do not copy external source. Record architecture, decisions, license/provenance cautions, and roadmap in docs.
+Outcome: documents `reference-repository-analysis.md`, `cashnet-target-architecture.md`, `integration-decision-record.md`, and `backend-roadmap.md`; reference repositories remain ignored local checkouts.
+
+PHASE 1 — modular backend foundation
+Objective: introduce stable service boundaries without changing the synthetic workflow.
+Changes: modular routes/services, configuration parsing, standardized errors, Pino redaction, normalized Zod models with provenance, a synthetic blockchain-provider contract, and foundational tests. The Phase 1 migration created normalized investigation, wallet, transaction/input/output, transfer, contract-interaction, entity, label, evidence, VASP-candidate, risk-indicator, and event tables/indexes.
+Dependencies: Express 5, Zod, Pino/Pino HTTP, Drizzle/pg scaffolding, TypeScript, Node test runner through the workspace toolchain.
+Problems/solution: preserve existing generated API/UI behavior by leaving legacy `/api/*` synthetic service behavior in place and adding versioned v1 boundaries separately.
+Outcome: default synthetic behavior remains deterministic; normalized facts are capable of carrying raw/provenance information.
+
+PHASE 2 — persistence, RBAC, authorization, and audit
+Objective: add PostgreSQL-backed case work without replacing the existing database mechanism or trusting client-provided role/ownership claims.
+Changes: Drizzle schemas and ordered migration runner; `users`, `roles`, `permissions`, `user_roles`, `role_permissions`, `case_memberships`, persistent cases/investigations/wallet subjects/evidence, and append-only `audit_events`. Repositories implement scoped queries, business services use repository interfaces, and multi-record changes use PostgreSQL transactions.
+Security: development actor authentication reads `X-Cashnet-Dev-Actor` only when explicitly enabled outside production. Central authorization checks active permissions and case membership. Inaccessible and missing cases use the same `NOT_FOUND` response while a denied attempt is audited.
+Tests: configuration/production authentication behavior, denial audit behavior, migration content, repository/service boundaries, and legacy regression checks.
+Known limitation: no PostgreSQL runtime or `DATABASE_URL` was available locally, so migration execution and persistent-route operation remain environment validation tasks.
+
+PHASE 3 — live blockchain provider pipeline
+Objective: replace later-authorized synthetic collection seams with typed, server-side real-data adapters for Ethereum, Bitcoin, and TRON; do not add graph tracing, VASP attribution, ML/GNN, or PS184.
+Changes: `ProviderRouter`, typed `BlockchainFactProvider` capabilities, `ProviderHttpClient` timeout/retry/backoff/429 handling, Etherscan V2/Ethereum adapter, Blockstream Esplora-compatible Bitcoin adapter, TronGrid adapter, normalizers, collection service, provider persistence repository, Phase 3 unique indexes, v1 wallet/transaction/collection routes, OpenAPI, generated React/Zod artifacts, and mocked provider tests.
+Data rules: raw payload and source/provenance are retained; Bitcoin preserves vin/vout/outpoint fields; unsupported capabilities return typed results; unavailable/empty/malformed responses are not replaced with synthetic data. Token transfers not found in a first transaction page trigger a provider transaction lookup before persistence, avoiding a fabricated parent transaction.
+Debugging: generated artifact workflow initially encountered an access/mutator resolution issue; rerunning the existing generation workflow with permission to access installed dependencies completed successfully. API build initially had Windows/esbuild filesystem resolution errors under restricted execution; it completed successfully when the existing build was allowed to read installed dependencies. No database/provider credentials were available, so live verification was not fabricated.
+Outcome: 13 tests, typecheck, OpenAPI code generation, API build, and diff check passed locally. Clean database and live smoke checks remain pending.
+
+SECTION 4 — REPOSITORY REFERENCES
+
+All references are local `references/` checkouts and reference-only. No code was copied into CASHNET.
+
+1. https://github.com/rohteemie/Open-Source-Blockchain-Forensics — MIT. Bitcoin provider/normalization and fixture-testing patterns informed clean-room TypeScript design. Provider facts still require source retention and provider terms review.
+2. https://github.com/manic-startup/chainforensics — AGPL-3.0. Strong UTXO/tracing methodology reference only. Its implementation, containers, and code were NOT copied because AGPL implications require legal approval.
+3. https://github.com/Copexit/am-i-exposed — MIT. Bitcoin analysis, retry/cache/testing methodology reference. Browser-first behavior and entity data are unsuitable for direct server use without redesign and provenance review.
+4. https://github.com/Evidencly/evidencly-platform — MIT. Evidence/graph/report architecture reference. No Python/FastAPI code copied; recursive tracing/unsafe defaults are not adopted.
+5. https://github.com/ImMike/crypto-wallet-address-labels — repository MIT. Candidate data source only; individual datasets/labels need separate provenance, terms, review, and validation before import.
+6. https://github.com/VincenzoImp/bitcoin-address-clustering — MIT. Historical clustering methodology reference only; old data and heuristic false positives prohibit direct operational use.
+7. https://github.com/AML-Solana/mev-wallet-cluster-analysis — MIT. Ethereum case-study evidence discipline reference only, not a reusable tracing/identity engine.
+8. https://github.com/finos-labs/dtcch-2025-OpenAML — Apache-2.0. Later AML/risk research reference; models/data need separate validation, governance, and drift checks.
+
+SECTION 5 — LIBRARIES AND DEPENDENCIES
+
+Language/runtime: TypeScript on Node.js 24. Package manager: pnpm workspace (local verification used pnpm 11.19.0). Root tooling: TypeScript and Prettier.
+Backend runtime: Express 5 serves the API; Zod validates configuration/requests/models; Pino/Pino HTTP provide redacted logs; cookie-parser and cors are installed middleware; Drizzle ORM plus `pg` provide PostgreSQL access. Backend development/build: esbuild, esbuild-plugin-pino, pino-pretty, thread-stream, TypeScript and Node types.
+Database: `drizzle-orm`, `drizzle-zod`, `pg`, `drizzle-kit`, and `tsx`; `lib/db` contains migration/connection code.
+Contracts: Orval generates the React client and Zod artifacts from `lib/api-spec/openapi.yaml`. `@tanstack/react-query` is the client runtime.
+Frontend: React 19, React DOM, Vite, Tailwind, Wouter, React Query, Radix component packages, Framer Motion, Recharts, React Hook Form, and UI helper libraries listed in `artifacts/cashnet/package.json`. These are existing UI dependencies, not Phase 3 provider dependencies.
+Tests: Node's built-in test runner is invoked from the API package after TypeScript compilation; no separate test-framework package was added.
+
+SECTION 6 — DATABASE ARCHITECTURE
+
+Database: PostgreSQL. Access: Drizzle schema exports and `pg`; the runner applies `database/schema.sql`, Phase 1, Phase 2, then Phase 3 and records completion in `cashnet_schema_migrations`.
+Important tables actually present: `cases`, legacy `audit_logs`, `investigations`, `wallets`, `blockchain_transactions`, `transaction_inputs`, `transaction_outputs`, `token_transfers`, `contract_interactions`, `wallet_relationships`, `entities`, `address_labels`, `evidence`, `vasp_candidates`, `risk_indicators`, `investigation_events`, `users`, `roles`, `permissions`, `user_roles`, `role_permissions`, `case_memberships`, `wallet_subjects`, and `audit_events`.
+Relations: cases own investigations/wallets/evidence; investigations own wallet subjects; blockchain transactions can reference a case and wallet and own child inputs/outputs/transfers/interactions. Users acquire roles/permissions and case memberships. `audit_events` reference case/actor where applicable.
+Indexes/uniqueness: transaction identity is `(chain, transaction_hash)`; Phase 3 adds case/chain/lowercase wallet uniqueness and unique child-fact identities; migration tables include case, user, investigation, block/transaction, label and audit indexes. Collection uses repository transactions. Provider raw data/reference and retrieval data persist in JSON/reference/timestamp fields. `audit_events` is append-only by privilege revocation and application flow.
+
+SECTION 7 — AUTHENTICATION / AUTHORIZATION
+
+Development actor auth is a temporary v1 boundary. `CASHNET_DEV_AUTH_ENABLED=true` must be set outside production; the server reads `X-Cashnet-Dev-Actor`, resolves an active database user and its roles/permissions, and rejects this mechanism in production. Roles seeded by migration are ADMIN, SUPERVISOR, INVESTIGATOR, ANALYST, and VIEWER. Permission and case membership checks are central. An inaccessible case is not enumerable: the response is `NOT_FOUND`, and `UNAUTHORIZED_ACCESS_ATTEMPT` is written to audit.
+
+SECTION 8 — BLOCKCHAIN PROVIDER ARCHITECTURE
+
+The Phase 1 `BlockchainProvider` remains compatible with synthetic behavior. Phase 3 adds a richer `BlockchainFactProvider`: address validation, wallet profile, transaction history, one transaction, token transfers, internal transactions, and block lookup. `ProviderRouter` selects an adapter only in authorized data mode.
+Ethereum: Etherscan V2 uses `ETHERSCAN_API_KEY` and optional `ETHERSCAN_CHAIN_ID` (default 1). It supports account balance, normal transaction history, ERC-20 history, internal history, transaction and block proxy lookup; normalized fields include hashes, blocks, timestamps, from/to, values, gas/gas price/gas used, method/input, execution status, transfers and interactions. Paging uses page/offset.
+Bitcoin: an approved `BITCOIN_ESPLORA_BASE_URL` supplies address profile/history and transaction/block data. Normalization retains txid, fee, status, block fields, vin previous transaction/output index/address/value/script and vout address/value/script. Token/internal capability is explicitly unsupported.
+TRON: `TRONGRID_API_KEY` with `TRONGRID_BASE_URL` supports account activity, transactions and TRC-20 history. Normalization retains transaction identifiers/timing/contract fields where provided and TRC-20 source/target/asset/amount/contract address. TronGrid fingerprints carry pagination.
+
+SECTION 9 — COMPLETE DATA PIPELINES
+
+Authorized investigation collection: authenticated actor → central case/permission gate → approved/authorized investigation → ProviderRouter → chain adapter → ProviderHttpClient → raw provider response → chain normalizer → typed normalized facts/provenance → PostgreSQL repository transaction → investigation/audit outcome.
+Ethereum applies this to normal, internal and token records; transaction lookup fills a missing parent for a token transfer before persisting it. Bitcoin transforms raw Esplora transaction arrays into UTXO-aware transaction/input/output records. TRON transforms account/transaction/TRC-20 payloads into normalized transaction/transfer facts. Direct v1 wallet/transaction lookup reads a provider but the case-isolated collection route is the persistence path.
+
+SECTION 10 — API
+
+Legacy `/api/*` (no v1 authentication): GET dashboard/cases/case/fund-flow/wallets/predictions/interventions/reports; POST cases, case analyze, complaint, interventions, and intervention approval. They call `SyntheticCaseService` and retain synthetic output.
+V1: GET health/version; POST/GET/PATCH case routes; POST/GET/PATCH investigation routes; POST investigation wallet; POST `investigations/:id/collect`; POST/GET evidence; GET case audit; GET `wallets/:chain/:address`; GET `transactions/:chain/:txHash`. V1 routes dynamically obtain the persistent context, authenticate the development actor, validate Zod input, call services, use repositories where persistence is required, and return standardized errors. Exact schema is `lib/api-spec/openapi.yaml` and generated artifacts.
+
+SECTION 11 — PROVENANCE AND EVIDENCE
+
+Normalized provenance includes source type, provider, source reference/URL where present, retrieved time, method, optional confidence, raw reference, and raw data. Evidence adds observed/collected timestamps, content hash and description where applicable. FACT means retained provider or user data. INFERENCE means a separately identified analytical conclusion. ENTITY/VASP attribution is not Phase 3 implementation and must not be represented as fact. REAL-WORLD IDENTITY is never inferred from an address or label.
+
+SECTION 12 — ERROR / RESILIENCE
+
+Provider HTTP calls have a bounded timeout, exponential backoff for transient errors, explicit 429 rate-limit mapping, 5xx availability mapping, malformed-JSON handling, and standardized app errors. Empty results and unsupported capabilities are typed outcomes. Error responses include code/message/request ID and optional details. Pino redacts authorization, cookies, API/development actor headers, and common body secret fields.
+
+SECTION 13 — TESTING
+
+`foundation.test.ts` covers configuration, schemas/provenance, synthetic provider/legacy v1 health behavior, and Phase 1 migration requirements. `phase2.test.ts` covers production-disabled dev auth, case isolation/denial audit, and Phase 2 migration. `phase3.test.ts` covers mocked Etherscan normalization, Esplora UTXO normalization, TronGrid TRC-20 normalization, rate limit/router behavior, and Phase 3 migration ledger. Last local run: 13 passed, 0 failed. Typecheck, Orval generation, API build, and `git diff --check` passed. There is no clean database integration test or live provider smoke test in this environment.
+
+SECTION 14 — DEBUGGING / PROBLEMS ENCOUNTERED
+
+Windows/esbuild filesystem resolution: restricted execution initially could not resolve installed worker/mutator paths. Allowing the existing build/generation workflow to read local installed dependencies resolved it; API build and Orval generation passed. PostgreSQL runtime: no local psql, service, Docker, or DATABASE_URL; no installation was performed and migration testing is pending. Provider credentials/endpoints: Etherscan key, Esplora base URL, and TronGrid key were absent; mocked tests passed but live claims were not made. Initial Orval run reported custom-fetch path/access resolution during restricted execution; the existing `custom-fetch.ts` was present and successful rerun generated artifacts.
+
+SECTION 15 — ENVIRONMENT VARIABLES
+
+NODE_ENV (optional, development/test/production, non-secret); PORT (optional server port); LOG_LEVEL (optional); API_VERSION (optional, v1); DATABASE_URL (required for persistent routes/migrations, secret connection URL); CASHNET_DATA_MODE (synthetic default or authorized); CASHNET_DEV_AUTH_ENABLED (development-only boolean, never production); ETHERSCAN_API_KEY (authorized server secret); ETHERSCAN_CHAIN_ID (optional non-secret numeric chain id, default 1); BITCOIN_ESPLORA_BASE_URL (authorized approved HTTPS endpoint, potentially sensitive operational configuration); TRONGRID_API_KEY (authorized server secret); TRONGRID_BASE_URL (optional URL, default public TronGrid base); CASHNET_PROVIDER_TIMEOUT_MS and CASHNET_PROVIDER_MAX_RETRIES (optional non-secret server tuning). SUPABASE_*, BLOCKCHAIR_API_KEY, KAFKA_BROKER_URL, ELASTICSEARCH_* and JWT_SECRET appear in `.env.example` as existing/reserved configuration and are not live Phase 3 dependencies. Use blank examples only; never commit values.
+
+SECTION 16 — SECURITY MODEL
+
+Secrets are environment-only and logging redacts common secret paths. Provider actions are read-only; no signing/private key/seed phrase handling exists. Authorized mode is explicit; synthetic mode remains default. RBAC, scoped membership lookup, case isolation and immutable audit behavior guard persisted case work. Provider credentials stay server-side. Production identity, operational secrets management and database RLS policies are future hardening work.
+
+SECTION 17 — CURRENT LIMITATIONS
+
+Live provider and clean migration verification are pending environment setup. No graph, bounded BFS, tracing, clustering, VASP attribution, Chainabuse, advanced entity intelligence, fraud intelligence, ML/GNN, PS184, production identity provider, frontend v1 migration, Docker configuration, or RLS policy implementation exists. The UI remains the legacy synthetic workflow. Historical address labels, when considered in future, require separate import/provenance review.
+
+SECTION 18 — FUTURE PHASES
+
+Phase 4: transaction graph and bounded BFS tracing, dependent on reliable persisted Phase 3 facts and operational validation. Phase 5: reviewed address intelligence, carefully separated clustering inference and VASP candidate assessment, dependent on Phase 4 evidence paths. Phase 6: PS183 fraud/risk intelligence, dependent on governed facts/inferences. Later: BNB/Polygon/Solana adapters, PS184, production identity and institutional adapters. Each phase must preserve providers, repositories, provenance, case isolation, and explicit uncertainty.
+
+SECTION 19 — HOW TO CONTINUE DEVELOPMENT
+
+1. Read this file, `docs/PROJECT_STATUS.md`, and architecture docs first.
+2. Run tests, typecheck, generation, build, and inspect Git status.
+3. Do not rewrite Phase 0–3 boundaries or legacy synthetic routes.
+4. Add provider features behind ProviderRouter and adapters; do not call providers directly from business services.
+5. Use repositories and database transactions; do not bypass persistence ports.
+6. Preserve raw/provenance/confidence; do not invent attribution or identities.
+7. Work one approved phase at a time and update contracts/generated artifacts/docs/tests together.
+
+SECTION 20 — FILE / ARCHITECTURE MAP
+
+`artifacts/api-server/src/config` configuration; `auth` development actor/case authorization; `errors` standardized error middleware; `repositories` ports/Postgres implementations; `routes` legacy and v1 HTTP boundaries; `schemas` Zod normalized models; `services/investigation` synthetic and persistent orchestration; `services/blockchain` provider port/router/adapters/http/normalizers; tests adjacent in API source.
+`artifacts/cashnet` is the current Vite/React UI. `lib/api-spec` owns OpenAPI. `lib/api-client-react` and `lib/api-zod` are generated artifacts. `lib/db/src/schema` contains Drizzle identity/case/investigation/evidence/audit/blockchain models and `migrate.ts`. `database/migrations` contains ordered additive SQL. `docs` contains current architecture/status/decisions. `.github` contains CI and collaboration templates.
+
+SECTION 21 — FINAL CURRENT STATE
+
+PROJECT = CASHNET
+CURRENT_PHASE = 3
+PHASE_0 = COMPLETE
+PHASE_1 = COMPLETE
+PHASE_2 = COMPLETE
+PHASE_3 = COMPLETE_WITH_ENVIRONMENT_PENDING
+PHASE_4 = NOT_STARTED
+SUPPORTED_CHAINS = Ethereum, Bitcoin, TRON
+ETH_PROVIDER = Etherscan V2
+BTC_PROVIDER = Esplora
+TRON_PROVIDER = TronGrid
+GRAPH = NOT_IMPLEMENTED
+CLUSTERING = NOT_IMPLEMENTED
+VASP_ATTRIBUTION = NOT_IMPLEMENTED
+ML = NOT_IMPLEMENTED
+PS184 = NOT_IMPLEMENTED
+DATABASE = PostgreSQL
+ORM = Drizzle
+ROOT_REPOSITORY = CASHNET

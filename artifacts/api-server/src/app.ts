@@ -2,6 +2,8 @@ import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
+import v1Router from "./routes/v1";
+import { apiErrorHandler } from "./errors/middleware";
 import { logger } from "./lib/logger";
 
 const app: Express = express();
@@ -30,5 +32,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);
+app.use("/api/v1", v1Router);
+app.use(apiErrorHandler);
 
 export default app;

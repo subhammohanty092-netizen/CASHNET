@@ -205,6 +205,97 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Report" }
+  /v1/cases:
+    get:
+      operationId: listPersistentCases
+      tags: [cashnet]
+      summary: List cases accessible to the authenticated development actor
+      responses: { "200": { description: Cases, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/PersistentCase" } } } } } }
+    post:
+      operationId: createPersistentCase
+      tags: [cashnet]
+      summary: Create a persistent case
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/PersistentCaseInput" } } } }
+      responses: { "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/PersistentCase" } } } } }
+  /v1/cases/{id}:
+    get:
+      operationId: getPersistentCase
+      tags: [cashnet]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { "200": { description: Case, content: { application/json: { schema: { $ref: "#/components/schemas/PersistentCase" } } } } }
+    patch:
+      operationId: updatePersistentCase
+      tags: [cashnet]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/PersistentCasePatch" } } } }
+      responses: { "200": { description: Updated, content: { application/json: { schema: { $ref: "#/components/schemas/PersistentCase" } } } } }
+  /v1/cases/{id}/audit:
+    get:
+      operationId: listCaseAuditEvents
+      tags: [cashnet]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { "200": { description: Audit events, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/AuditEvent" } } } } } }
+  /v1/investigations:
+    post:
+      operationId: createPersistentInvestigation
+      tags: [cashnet]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/InvestigationInput" } } } }
+      responses: { "201": { description: Created; collection requires approval and authorization, content: { application/json: { schema: { $ref: "#/components/schemas/PersistentInvestigation" } } } } }
+  /v1/investigations/wallet:
+    post:
+      operationId: createWalletSubjectInvestigation
+      tags: [cashnet]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/WalletInvestigationInput" } } } }
+      responses: { "201": { description: Created; collection requires approval and authorization, content: { application/json: { schema: { $ref: "#/components/schemas/WalletInvestigationResult" } } } } }
+  /v1/investigations/{id}:
+    get:
+      operationId: getPersistentInvestigation
+      tags: [cashnet]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { "200": { description: Investigation, content: { application/json: { schema: { $ref: "#/components/schemas/PersistentInvestigation" } } } } }
+    patch:
+      operationId: transitionPersistentInvestigation
+      tags: [cashnet]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/InvestigationTransitionInput" } } } }
+      responses: { "200": { description: Updated, content: { application/json: { schema: { $ref: "#/components/schemas/PersistentInvestigation" } } } } }
+  /v1/investigations/{id}/collect:
+    post:
+      operationId: collectInvestigationProviderData
+      tags: [cashnet]
+      summary: Collect authorized live blockchain facts and persist normalized results
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { "200": { description: Collection result, content: { application/json: { schema: { $ref: "#/components/schemas/CollectionResult" } } } } }
+  /v1/wallets/{chain}/{address}:
+    get:
+      operationId: getLiveWalletProfile
+      tags: [cashnet]
+      summary: Read normalized wallet facts through an authorized provider adapter
+      parameters:
+        - { name: chain, in: path, required: true, schema: { type: string, enum: [BITCOIN, ETHEREUM, TRON] } }
+        - { name: address, in: path, required: true, schema: { type: string } }
+      responses: { "200": { description: Normalized provider result, content: { application/json: { schema: { $ref: "#/components/schemas/LiveWalletResult" } } } } }
+  /v1/transactions/{chain}/{txHash}:
+    get:
+      operationId: getLiveTransaction
+      tags: [cashnet]
+      summary: Read one normalized transaction through an authorized provider adapter
+      parameters:
+        - { name: chain, in: path, required: true, schema: { type: string, enum: [BITCOIN, ETHEREUM, TRON] } }
+        - { name: txHash, in: path, required: true, schema: { type: string } }
+      responses: { "200": { description: Normalized transaction, content: { application/json: { schema: { $ref: "#/components/schemas/NormalizedTransactionBundle" } } } } }
+  /v1/evidence:
+    post:
+      operationId: createPersistentEvidence
+      tags: [cashnet]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/EvidenceInput" } } } }
+      responses: { "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/PersistentEvidence" } } } } }
+  /v1/evidence/{id}:
+    get:
+      operationId: getPersistentEvidence
+      tags: [cashnet]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { "200": { description: Evidence, content: { application/json: { schema: { $ref: "#/components/schemas/PersistentEvidence" } } } } }
 components:
   schemas:
     HealthStatus:
@@ -471,4 +562,219 @@ components:
         case: { $ref: "#/components/schemas/Case" }
         sections: { type: array, items: { type: object, additionalProperties: true } }
         disclaimer: { type: string }
+    PersistentCase:
+      type: object
+      required: [id, caseNumber, title, description, fraudType, reportedAmount, status, priority, investigationAuthorizationStatus, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        caseNumber: { type: string }
+        title: { type: string }
+        description: { type: string }
+        fraudType: { type: string }
+        reportedAmount: { type: string }
+        status: { type: string, enum: [OPEN, IN_PROGRESS, ON_HOLD, CLOSED, ARCHIVED] }
+        priority: { type: string }
+        investigationAuthorizationStatus: { type: string, enum: [PENDING, APPROVED, REJECTED] }
+        createdBy: { type: [string, "null"] }
+        assignedTo: { type: [string, "null"] }
+        closedAt: { type: [string, "null"], format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    PersistentCaseInput:
+      type: object
+      required: [caseNumber, title, description, fraudType, reportedAmount]
+      properties:
+        caseNumber: { type: string }
+        title: { type: string }
+        description: { type: string }
+        fraudType: { type: string }
+        reportedAmount: { type: string }
+        priority: { type: string }
+    PersistentCasePatch:
+      type: object
+      properties:
+        title: { type: string }
+        description: { type: string }
+        priority: { type: string }
+        status: { type: string, enum: [OPEN, IN_PROGRESS, ON_HOLD, CLOSED, ARCHIVED] }
+        assignedTo: { type: [string, "null"] }
+        investigationAuthorizationStatus: { type: string, enum: [PENDING, APPROVED, REJECTED] }
+    PersistentInvestigation:
+      type: object
+      required: [id, caseId, status, investigationDepth, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        caseId: { type: string }
+        status: { type: string, enum: [CREATED, AUTHORIZED, RUNNING, COMPLETED, PARTIAL, FAILED, CANCELLED] }
+        chain: { type: [string, "null"] }
+        walletAddress: { type: [string, "null"] }
+        investigationDepth: { type: number }
+        startTime: { type: [string, "null"], format: date-time }
+        endTime: { type: [string, "null"], format: date-time }
+        createdBy: { type: [string, "null"] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    InvestigationInput:
+      type: object
+      required: [caseId]
+      properties:
+        caseId: { type: string }
+        chain: { type: string }
+        walletAddress: { type: string }
+        investigationDepth: { type: number, minimum: 1, maximum: 10 }
+        startTime: { type: string, format: date-time }
+        endTime: { type: string, format: date-time }
+    InvestigationTransitionInput:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [AUTHORIZED, RUNNING, COMPLETED, PARTIAL, FAILED, CANCELLED] }
+    WalletInvestigationInput:
+      allOf:
+        - $ref: "#/components/schemas/InvestigationInput"
+        - type: object
+          required: [chain, walletAddress]
+          properties:
+            label: { type: string, enum: [REPORTED, SUSPECT, SUBJECT, OBSERVED, UNKNOWN] }
+    WalletSubject:
+      type: object
+      required: [id, caseId, investigationId, chain, walletAddress, label, createdAt]
+      properties:
+        id: { type: string }
+        caseId: { type: string }
+        investigationId: { type: string }
+        chain: { type: string }
+        walletAddress: { type: string }
+        label: { type: string }
+        createdAt: { type: string, format: date-time }
+    WalletInvestigationResult:
+      type: object
+      required: [investigation, walletSubject]
+      properties:
+        investigation: { $ref: "#/components/schemas/PersistentInvestigation" }
+        walletSubject: { $ref: "#/components/schemas/WalletSubject" }
+    ProviderProvenance:
+      type: object
+      required: [sourceType, provider, retrievedAt, method]
+      properties:
+        sourceType: { type: string }
+        provider: { type: string }
+        sourceReference: { type: string }
+        rawReference: { type: string }
+        retrievedAt: { type: string, format: date-time }
+        method: { type: string }
+    NormalizedWallet:
+      type: object
+      required: [id, address, chain, createdAt, provenance]
+      properties:
+        id: { type: string }
+        address: { type: string }
+        chain: { type: string }
+        balance: { type: string }
+        balanceUnit: { type: string }
+        createdAt: { type: string, format: date-time }
+        provenance: { $ref: "#/components/schemas/ProviderProvenance" }
+    NormalizedTransaction:
+      type: object
+      required: [id, chain, transactionHash, createdAt, inputs, outputs, provenance]
+      properties:
+        id: { type: string }
+        chain: { type: string }
+        transactionHash: { type: string }
+        timestamp: { type: string, format: date-time }
+        blockNumber: { type: string }
+        blockHash: { type: string }
+        confirmations: { type: number }
+        from: { type: string }
+        to: { type: string }
+        value: { type: string }
+        fee: { type: string }
+        executionStatus: { type: string }
+        inputs: { type: array, items: { type: object, additionalProperties: true } }
+        outputs: { type: array, items: { type: object, additionalProperties: true } }
+        provenance: { $ref: "#/components/schemas/ProviderProvenance" }
+    NormalizedTransactionBundle:
+      type: object
+      required: [provider, transaction, tokenTransfers, contractInteractions]
+      properties:
+        provider: { type: string }
+        transaction: { $ref: "#/components/schemas/NormalizedTransaction" }
+        tokenTransfers: { type: array, items: { type: object, additionalProperties: true } }
+        contractInteractions: { type: array, items: { type: object, additionalProperties: true } }
+    LiveWalletResult:
+      type: object
+      required: [provider, transactions, tokenTransfers, internalTransactions, capabilities]
+      properties:
+        provider: { type: string }
+        wallet: { oneOf: [{ $ref: "#/components/schemas/NormalizedWallet" }, { type: "null" }] }
+        transactions: { type: array, items: { type: object, additionalProperties: true } }
+        tokenTransfers: { type: array, items: { type: object, additionalProperties: true } }
+        internalTransactions: { type: array, items: { type: object, additionalProperties: true } }
+        capabilities: { type: object, additionalProperties: { type: boolean } }
+    CollectionResult:
+      type: object
+      required: [investigationId, status, provider, transactionCount, tokenTransferCount]
+      properties:
+        investigationId: { type: string }
+        status: { type: string }
+        provider: { type: string }
+        transactionCount: { type: number }
+        tokenTransferCount: { type: number }
+    PersistentEvidence:
+      type: object
+      required: [id, subjectType, subjectId, evidenceType, sourceType, createdAt]
+      properties:
+        id: { type: string }
+        caseId: { type: [string, "null"] }
+        investigationId: { type: [string, "null"] }
+        subjectType: { type: string }
+        subjectId: { type: string }
+        evidenceType: { type: string }
+        sourceType: { type: string }
+        provider: { type: [string, "null"] }
+        sourceReference: { type: [string, "null"] }
+        sourceUrl: { type: [string, "null"] }
+        observedAt: { type: [string, "null"], format: date-time }
+        collectedAt: { type: [string, "null"], format: date-time }
+        method: { type: [string, "null"] }
+        confidence: { type: [number, "null"], minimum: 0, maximum: 1 }
+        rawReference: { type: [string, "null"] }
+        contentHash: { type: [string, "null"] }
+        description: { type: [string, "null"] }
+        createdBy: { type: [string, "null"] }
+        createdAt: { type: string, format: date-time }
+    EvidenceInput:
+      type: object
+      required: [caseId, subjectType, subjectId, evidenceType, sourceType]
+      properties:
+        caseId: { type: string }
+        investigationId: { type: [string, "null"] }
+        subjectType: { type: string }
+        subjectId: { type: string }
+        evidenceType: { type: string, enum: [BLOCKCHAIN_FACT, TRANSACTION, ADDRESS_LABEL, ENTITY_MATCH, VASP_MATCH, GRAPH_RELATION, RISK_INDICATOR, DOCUMENT, OSINT, OTHER] }
+        sourceType: { type: string, enum: [SYNTHETIC, API, RPC, DATASET, INFERENCE, OTHER, USER_PROVIDED] }
+        provider: { type: [string, "null"] }
+        sourceReference: { type: [string, "null"] }
+        sourceUrl: { type: [string, "null"] }
+        observedAt: { type: [string, "null"], format: date-time }
+        collectedAt: { type: [string, "null"], format: date-time }
+        method: { type: [string, "null"] }
+        confidence: { type: [number, "null"], minimum: 0, maximum: 1 }
+        rawReference: { type: [string, "null"] }
+        contentHash: { type: [string, "null"] }
+        description: { type: [string, "null"] }
+    AuditEvent:
+      type: object
+      required: [id, action, resourceType, result, metadata, createdAt]
+      properties:
+        id: { type: string }
+        caseId: { type: [string, "null"] }
+        actorId: { type: [string, "null"] }
+        action: { type: string }
+        resourceType: { type: string }
+        resourceId: { type: [string, "null"] }
+        requestId: { type: [string, "null"] }
+        result: { type: string, enum: [SUCCESS, DENIED, FAILURE] }
+        metadata: { type: object, additionalProperties: true }
+        createdAt: { type: string, format: date-time }
 

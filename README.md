@@ -1,69 +1,150 @@
 # CASHNET
 
-CASHNET is a synthetic-data cybercrime financial intelligence platform for authorized investigators. It starts with a scam report and connects complaint indicators, account analysis, transactions, multi-hop fund flow, crypto tracing, VASP attribution, risk, geospatial prediction, ATM cash-out hotspots, intervention review, audit, and reporting.
+**Evidence-driven multi-chain blockchain investigation and VASP intelligence platform for SIH PS26182/26183.** CASHNET is an investigator-facing TypeScript workspace that preserves a deterministic synthetic demonstration while adding a protected, server-side foundation for authorized Ethereum, Bitcoin, and TRON collection. It records provenance, isolates case data, and separates observed facts from future analytical inference or attribution.
 
-All seeded intelligence is clearly marked **SYNTHETIC** or **MODEL_INFERENCE**. The application does not access NCRP, SAHYOG, bank systems, UPI, VASP systems, or government systems.
+> Current release: **Phase 3 complete with environment-dependent verification pending.** It is not yet a production VASP-attribution, graph-tracing, identity-resolution, or automated enforcement system.
 
-## Project structure
+## SIH mapping and current scope
+
+- **PS26182/26183:** case-led financial and blockchain investigation workflows: intake, authorization, evidence, normalized chain facts, audit, and reporting boundaries.
+- **Implemented:** synthetic investigator workflow; PostgreSQL persistence, RBAC, case isolation, investigation/evidence/audit records; authorized provider adapters.
+- **Planned:** bounded graph tracing, clustering, VASP/entity intelligence, fraud/risk intelligence, PS184, production identity, and institutional integrations.
+
+## Architecture
 
 ```text
-artifacts/cashnet/        React + TypeScript investigator application
-artifacts/api-server/    Express API and synthetic analytical provider
-lib/api-spec/             OpenAPI source contract
-lib/api-client-react/     Generated React Query client
-lib/api-zod/              Generated validation schemas
-lib/db/                   Optional Drizzle/PostgreSQL package
-database/                 Portable schema and seed notes
-docs/                     Architecture and provider replacement notes
+React investigator UI ── generated React Query client ─┐
+                                                        ▼
+Legacy /api/* synthetic routes        /api/v1 Express API
+  (preserved)                                  │
+                                               ▼
+                              development authentication + RBAC
+                                               │
+                                               ▼
+                              case authorization + investigation service
+                                               │
+                                               ▼
+                           BlockchainService → ProviderRouter
+                                  │       ┌──────┼───────────┐
+                                  │       ▼      ▼           ▼
+                                  │ Etherscan  Esplora    TronGrid
+                                  │     V2      Bitcoin      TRON
+                                  ▼
+                raw response → normalization → repositories → PostgreSQL
+                                                   │
+                                                   ▼
+                                        evidence/provenance/audit
 ```
 
-## Setup and run locally
+See [docs/architecture-current.md](docs/architecture-current.md) for the full diagrams and [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md) for status.
+
+## Supported chains and providers
+
+| Chain | Provider | Status | Current facts |
+| --- | --- | --- | --- |
+| Ethereum | Etherscan V2 | Implemented; live credentials pending | profile, normal/internal transactions, ERC-20 transfers, transaction/block lookup, contract-call metadata where supplied |
+| Bitcoin | Blockstream Esplora-compatible endpoint | Implemented; endpoint pending | profile/history, transaction details, vin/vout, fee, confirmation and UTXO semantics |
+| TRON | TronGrid | Implemented; live credentials pending | account activity, transaction lookup, TRX fields and TRC-20 transfers |
+| BNB Chain, Polygon, Solana | — | Explicitly unsupported placeholders | no fabricated fallback |
+
+## Modules and structure
+
+| Path | Responsibility |
+| --- | --- |
+| `artifacts/cashnet` | Existing React/TypeScript investigator UI; currently uses legacy synthetic APIs. |
+| `artifacts/api-server` | Express API, services, RBAC, adapters, repositories, normalized schemas, and tests. |
+| `lib/api-spec` | OpenAPI source and Orval generation configuration. |
+| `lib/api-client-react` / `lib/api-zod` | Generated React Query client and Zod contracts. |
+| `lib/db` / `database` | Drizzle exports, migration runner, baseline schema, and additive migrations. |
+| `docs` | Architecture, decisions, status, provider, and reference-repository records. |
+
+```text
+CASHNET/
+├── artifacts/                 # UI and Express API applications
+├── database/                  # portable baseline + Phase 1–3 migrations
+├── docs/                      # architecture and operational documentation
+├── lib/                       # OpenAPI, generated contracts, Drizzle package
+├── .github/                   # CI and repository templates
+├── CASHNET_COMPLETE_PROJECT_HISTORY.txt
+└── .env.example
+```
+
+The eight reference checkouts are local, ignored `references/` directories. They are not vendored code, packages, or Git submodules.
+
+## Setup
+
+Requirements: Node.js 24, pnpm 11.19.0, and an approved PostgreSQL instance for persistent routes. Docker configuration is not currently provided.
 
 ```bash
-pnpm install
-pnpm --filter @workspace/api-server run dev
-# in another terminal
-PORT=4173 BASE_PATH=/ pnpm --filter @workspace/cashnet run dev
+pnpm install --frozen-lockfile
+pnpm run typecheck
+pnpm -r --if-present run test
 ```
 
-The Replit workflows already start both services with the correct ports and routing. The UI calls `/api` through the shared route.
+### Synthetic mode
 
-## Environment variables
+Synthetic mode is the default and needs no database or provider credential.
 
-Copy `.env.example` to `.env` when running outside Replit. Synthetic mode needs no API keys. Set `CASHNET_DATA_MODE=synthetic` to make the default explicit. Supabase and external provider variables are reserved for authorized future adapters; never expose service-role keys to the browser.
+```bash
+cp .env.example .env
+pnpm --filter @workspace/api-server run dev
+# separately:
+pnpm --filter @workspace/cashnet run dev
+```
 
-## Supabase setup
+### PostgreSQL and migrations
 
-The MVP uses an in-memory synthetic provider so it remains functional without Supabase. For a deployment that needs persistence, create a Supabase project, enable Auth and Storage, apply `database/schema.sql` to its PostgreSQL database, configure `SUPABASE_URL` and `SUPABASE_ANON_KEY` on the server, and keep `SUPABASE_SERVICE_ROLE_KEY` server-only. Add RLS policies before importing any real data. Do not mix user-provided/API records with synthetic records without retaining `source_type`.
+Set a server-only `DATABASE_URL` for an approved PostgreSQL database, then apply the ledger-backed migrations:
 
-## Synthetic demo access
+```bash
+pnpm --filter @workspace/db run migrate
+```
 
-The default demo is intentionally open in synthetic mode so reviewers can run the workflow without credentials:
+For local v1 testing only, enable `CASHNET_DEV_AUTH_ENABLED=true` outside production and send `X-Cashnet-Dev-Actor` for a seeded development user. This is deliberately disabled in production.
 
-- Investigator: `demo.investigator`
-- Role: `INVESTIGATOR`
-- Case: `CASE-CASHNET-001`
-- Report reference: `NCRP-SYN-260818-001`
+### Authorized provider mode
 
-## Main workflow
+Only an approved server environment may use `CASHNET_DATA_MODE=authorized`, `ETHERSCAN_API_KEY`, `ETHERSCAN_CHAIN_ID`, `BITCOIN_ESPLORA_BASE_URL`, `TRONGRID_API_KEY`, `TRONGRID_BASE_URL`, `CASHNET_PROVIDER_TIMEOUT_MS`, and `CASHNET_PROVIDER_MAX_RETRIES`. Values are documented in [.env.example](.env.example); provider keys are server-only secrets.
 
-Open a case from the Cases screen, inspect the complaint, run analysis, open Fund flow, press Play to follow timestamp order, and select the `FIAT → CRYPTO CONVERSION` event. The seeded event is **18 Aug 2026 · 10:11 UTC** at VASP Alpha. Continue to Geo & prediction for ranked predicted ATM locations, then prepare and explicitly approve the intervention. Reports include the same case results and the disclaimer: “Analytical prediction — requires investigator validation.”
+## API
 
-## Major modules
+### Legacy `/api/*`
 
-- **Complaint / Cases:** report ingestion with indicators and masked identifiers.
-- **Financial intelligence:** linked account inflow/outflow, velocity, fan-in/fan-out, and explainable risk indicators.
-- **Fund flow:** relationship graph and synchronized timestamp timeline, including fiat-to-crypto and crypto-to-bank conversion edges.
-- **Crypto / VASP:** wallet balances, chains, counterparties, VASP candidates, confidence, classification, and evidence.
-- **Risk:** transparent analytical baseline with score, category, confidence, features, and model version.
-- **Geo & prediction:** synthetic India coordinates, ATM/branch proximity, historical behavior features, ranked hotspots, probability, time window, and contributing factors.
-- **Action / intervention:** latest credited account, synthetic bank/IFSC/branch resolution, draft → review → explicit approval. No automatic freeze, debit, seizure, contact, or submission is performed.
-- **Audit / reports:** user actions and evidence-backed report sections with provenance labels.
+The unchanged synthetic workflow provides dashboard, cases, complaint intake, synthetic analysis/fund-flow, wallets, predictions, interventions, and reports. It is deterministic demo material, not live intelligence.
 
-## Known limitations
+### Persistent `/api/v1/*`
 
-The default server store is process-local and resets on restart. The map is rendered as a synthetic analytical surface rather than live map tiles. Kafka, Elasticsearch/Kibana, Supabase, banking APIs, blockchain APIs, and VASP APIs are interfaces/configuration points only. Predictions are a transparent baseline, not a validated operational model. Synthetic identifiers are not real accounts or ownership claims.
+- `GET /api/v1/health`, `GET /api/v1/version`
+- case, investigation, evidence, and case-audit routes
+- `POST /api/v1/investigations/:id/collect` for approved, authorized collection
+- `GET /api/v1/wallets/:chain/:address`
+- `GET /api/v1/transactions/:chain/:txHash`
 
-## Replacing synthetic providers
+The v1 boundary never trusts client-supplied roles or case ownership. The OpenAPI source is [lib/api-spec/openapi.yaml](lib/api-spec/openapi.yaml).
 
-Implement an adapter behind the existing API boundary for each authorized source: persist raw source reference and `source_type=API`, map provider errors to `DATA SOURCE UNAVAILABLE`, preserve unknown entities instead of guessing, and require credentials only through server environment/secrets. Add contract tests with recorded authorized fixtures, apply RLS and role checks, retain model provenance, and require investigator review before any intervention request is submitted through an institutional channel.# CASHNET
+## Security and provenance
+
+- Central case authorization combines active roles, permissions, and case memberships. Missing/inaccessible cases return the same non-enumerating `NOT_FOUND` outcome and denial attempts are audited.
+- Normalized facts retain source type, provider, source/reference, retrieval time, method, optional confidence, and raw-response reference/data. Facts are not identity, entity, or VASP attribution claims.
+- `synthetic` is the default; `authorized` is explicit. Empty/failing/unsupported provider calls never become synthetic substitutions.
+- CASHNET does not accept private keys, seed phrases, transaction signing material, or browser-side provider credentials.
+
+## Testing and verification
+
+```bash
+pnpm run typecheck
+pnpm -r --if-present run test
+pnpm --filter @workspace/api-spec run codegen
+pnpm --filter @workspace/api-server run build
+git diff --check
+```
+
+Current local results: typecheck, 13 tests, OpenAPI generation, API build, and diff check pass. Clean-PostgreSQL migration execution and live Etherscan/Esplora/TronGrid smoke tests are pending because this workspace has no configured database or provider credentials.
+
+## References, licensing, and roadmap
+
+The eight research/reference checkouts are documented in [docs/reference-repository-analysis.md](docs/reference-repository-analysis.md). No code or datasets were copied into CASHNET. In particular, `manic-startup/chainforensics` is AGPL-3.0 and remains reference-only. Third-party data and provider payloads require independent terms, authorization, and provenance review.
+
+`package.json` declares MIT, but no root `LICENSE` text file is currently present; do not infer rights over third-party references or data from that declaration.
+
+Not implemented: graph traversal/BFS, clustering, VASP/entity attribution, Chainabuse, fraud/risk intelligence, ML/GNN, PS184, production identity, frontend v1 migration, Docker deployment, RLS policy implementation, or live provider validation. The next approved step is **Phase 4: transaction graph and bounded BFS tracing**, after Phase 3 operational validation. Read [docs/backend-roadmap.md](docs/backend-roadmap.md), [docs/current-status-report.md](docs/current-status-report.md), and `CASHNET_COMPLETE_PROJECT_HISTORY.txt` before continuing.

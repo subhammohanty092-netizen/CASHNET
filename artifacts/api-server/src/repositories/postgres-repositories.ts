@@ -1,0 +1,151 @@
+import { sql } from "drizzle-orm";
+import type { CashnetDatabase } from "@workspace/db";
+import type { AuditRepository } from "./audit-repository";
+import type { CaseRepository } from "./case-repository";
+import type { EvidenceRepository } from "./evidence-repository";
+import type { InvestigationRepository } from "./investigation-repository";
+import type { RepositoryContext, TransactionCoordinator } from "./repository-context";
+import type { UserRepository } from "./user-repository";
+import type { WalletSubjectRepository } from "./wallet-subject-repository";
+import type { BlockchainRepository, PersistedBlockchainBundle } from "./blockchain-repository";
+import type { Actor, AuditEventRecord, CaseRecord, EvidenceRecord, InvestigationRecord, WalletSubjectRecord } from "./types";
+
+type Executor = Pick<CashnetDatabase, "execute">;
+const iso = (value: unknown): string | null => value == null ? null : new Date(String(value)).toISOString();
+const text = (value: unknown): string => String(value);
+const hasAdminRole = (actor: Actor) => actor.roles.includes("ADMIN");
+
+function caseRecord(row: Record<string, unknown>): CaseRecord {
+  return { id: text(row.id), caseNumber: text(row.case_reference), title: text(row.title), description: text(row.description), fraudType: text(row.fraud_type), reportedAmount: text(row.reported_amount), status: row.status as CaseRecord["status"], priority: text(row.priority), investigationAuthorizationStatus: row.investigation_authorization_status as CaseRecord["investigationAuthorizationStatus"], createdBy: row.created_by == null ? null : text(row.created_by), assignedTo: row.assigned_to == null ? null : text(row.assigned_to), closedAt: iso(row.closed_at), createdAt: iso(row.created_at)!, updatedAt: iso(row.updated_at)! };
+}
+function investigationRecord(row: Record<string, unknown>): InvestigationRecord {
+  return { id: text(row.id), caseId: text(row.case_id), status: row.status as InvestigationRecord["status"], chain: row.chain == null ? null : text(row.chain), walletAddress: row.wallet_address == null ? null : text(row.wallet_address), investigationDepth: Number(row.investigation_depth), startTime: iso(row.start_time), endTime: iso(row.end_time), createdBy: row.created_by == null ? null : text(row.created_by), createdAt: iso(row.created_at)!, updatedAt: iso(row.updated_at)! };
+}
+function evidenceRecord(row: Record<string, unknown>): EvidenceRecord {
+  return { id: text(row.id), caseId: row.case_id == null ? null : text(row.case_id), investigationId: row.investigation_id == null ? null : text(row.investigation_id), subjectType: text(row.subject_type), subjectId: text(row.subject_id), evidenceType: text(row.evidence_type), sourceType: text(row.source_type), provider: row.provider == null ? null : text(row.provider), sourceReference: row.source_reference == null ? null : text(row.source_reference), sourceUrl: row.source_url == null ? null : text(row.source_url), observedAt: iso(row.observed_at), collectedAt: iso(row.collected_at), method: row.method == null ? null : text(row.method), confidence: row.confidence == null ? null : Number(row.confidence), rawReference: row.raw_reference == null ? null : text(row.raw_reference), contentHash: row.content_hash == null ? null : text(row.content_hash), description: row.description == null ? null : text(row.description), createdBy: row.created_by == null ? null : text(row.created_by), createdAt: iso(row.created_at)! };
+}
+function auditRecord(row: Record<string, unknown>): AuditEventRecord {
+  return { id: text(row.id), caseId: row.case_id == null ? null : text(row.case_id), actorId: row.actor_id == null ? null : text(row.actor_id), action: text(row.action), resourceType: text(row.resource_type), resourceId: row.resource_id == null ? null : text(row.resource_id), requestId: row.request_id == null ? null : text(row.request_id), result: row.result as AuditEventRecord["result"], metadata: (row.metadata as Record<string, unknown>) ?? {}, createdAt: iso(row.created_at)! };
+}
+
+class PostgresCaseRepository implements CaseRepository {
+  constructor(private readonly db: Executor) {}
+  async findAccessibleById(actor: Actor, caseId: string) {
+    const result = await this.db.execute(sql`select c.* from cases c where c.id = ${caseId} and (${hasAdminRole(actor)} or exists (select 1 from case_memberships cm where cm.case_id = c.id and cm.user_id = ${actor.id}))`);
+    return result.rows[0] ? caseRecord(result.rows[0] as Record<string, unknown>) : null;
+  }
+  async listAccessible(actor: Actor) {
+    const result = await this.db.execute(sql`select c.* from cases c where (${hasAdminRole(actor)} or exists (select 1 from case_memberships cm where cm.case_id = c.id and cm.user_id = ${actor.id})) order by c.created_at desc`);
+    return result.rows.map((row) => caseRecord(row as Record<string, unknown>));
+  }
+  async create(input: Omit<CaseRecord, "id" | "createdAt" | "updatedAt" | "closedAt">) {
+    const result = await this.db.execute(sql`insert into cases (case_reference, title, description, fraud_type, reported_amount, status, priority, investigation_authorization_status, created_by, assigned_to) values (${input.caseNumber}, ${input.title}, ${input.description}, ${input.fraudType}, ${input.reportedAmount}, ${input.status}, ${input.priority}, ${input.investigationAuthorizationStatus}, ${input.createdBy}::uuid, ${input.assignedTo}::uuid) returning *`);
+    return caseRecord(result.rows[0] as Record<string, unknown>);
+  }
+  async update(caseId: string, patch: Parameters<CaseRepository["update"]>[1]) {
+    const hasAssignedTo = Object.hasOwn(patch, "assignedTo");
+    const hasClosedAt = Object.hasOwn(patch, "closedAt");
+    const result = await this.db.execute(sql`update cases set title = coalesce(${patch.title ?? null}, title), description = coalesce(${patch.description ?? null}, description), priority = coalesce(${patch.priority ?? null}, priority), status = coalesce(${patch.status ?? null}, status), investigation_authorization_status = coalesce(${patch.investigationAuthorizationStatus ?? null}, investigation_authorization_status), assigned_to = case when ${hasAssignedTo} then ${patch.assignedTo ?? null}::uuid else assigned_to end, closed_at = case when ${hasClosedAt} then ${patch.closedAt ?? null}::timestamptz else closed_at end, updated_at = now() where id = ${caseId} returning *`);
+    return result.rows[0] ? caseRecord(result.rows[0] as Record<string, unknown>) : null;
+  }
+  async addMember(caseId: string, userId: string) { await this.db.execute(sql`insert into case_memberships (case_id, user_id) values (${caseId}::uuid, ${userId}::uuid) on conflict do nothing`); }
+  async isMember(caseId: string, userId: string) { const result = await this.db.execute(sql`select 1 from case_memberships where case_id = ${caseId}::uuid and user_id = ${userId}::uuid`); return result.rows.length > 0; }
+}
+
+class PostgresInvestigationRepository implements InvestigationRepository {
+  constructor(private readonly db: Executor) {}
+  async findAccessibleById(actor: Actor, investigationId: string) {
+    const result = await this.db.execute(sql`select i.* from investigations i join cases c on c.id = i.case_id where i.id = ${investigationId} and (${hasAdminRole(actor)} or exists (select 1 from case_memberships cm where cm.case_id = c.id and cm.user_id = ${actor.id}))`);
+    return result.rows[0] ? investigationRecord(result.rows[0] as Record<string, unknown>) : null;
+  }
+  async create(input: Omit<InvestigationRecord, "id" | "createdAt" | "updatedAt">) {
+    const result = await this.db.execute(sql`insert into investigations (case_id, status, requested_by, source_type, chain, wallet_address, investigation_depth, start_time, end_time, created_by) values (${input.caseId}::uuid, ${input.status}, ${input.createdBy ?? "system"}, 'USER_PROVIDED', ${input.chain}, ${input.walletAddress}, ${input.investigationDepth}, ${input.startTime}::timestamptz, ${input.endTime}::timestamptz, ${input.createdBy}::uuid) returning *`);
+    return investigationRecord(result.rows[0] as Record<string, unknown>);
+  }
+  async updateStatus(investigationId: string, status: InvestigationRecord["status"], authorizedBy?: string) {
+    const result = await this.db.execute(sql`update investigations set status = ${status}, authorized_by = case when ${authorizedBy != null} then ${authorizedBy ?? null}::uuid else authorized_by end, authorized_at = case when ${status === "AUTHORIZED"} then now() else authorized_at end, completed_at = case when ${["COMPLETED", "PARTIAL", "FAILED", "CANCELLED"].includes(status)} then now() else completed_at end, updated_at = now() where id = ${investigationId} returning *`);
+    return result.rows[0] ? investigationRecord(result.rows[0] as Record<string, unknown>) : null;
+  }
+}
+
+class PostgresWalletSubjectRepository implements WalletSubjectRepository {
+  constructor(private readonly db: Executor) {}
+  async create(input: Omit<WalletSubjectRecord, "id" | "createdAt">) {
+    const result = await this.db.execute(sql`insert into wallet_subjects (case_id, investigation_id, chain, wallet_address, label) values (${input.caseId}::uuid, ${input.investigationId}::uuid, ${input.chain}, ${input.walletAddress}, ${input.label}) returning *`);
+    const row = result.rows[0] as Record<string, unknown>;
+    return { id: text(row.id), caseId: text(row.case_id), investigationId: text(row.investigation_id), chain: text(row.chain), walletAddress: text(row.wallet_address), label: row.label as WalletSubjectRecord["label"], createdAt: iso(row.created_at)! };
+  }
+}
+
+class PostgresEvidenceRepository implements EvidenceRepository {
+  constructor(private readonly db: Executor) {}
+  async findAccessibleById(actor: Actor, evidenceId: string) {
+    const result = await this.db.execute(sql`select e.* from evidence e join cases c on c.id = e.case_id where e.id = ${evidenceId} and (${hasAdminRole(actor)} or exists (select 1 from case_memberships cm where cm.case_id = c.id and cm.user_id = ${actor.id}))`);
+    return result.rows[0] ? evidenceRecord(result.rows[0] as Record<string, unknown>) : null;
+  }
+  async create(input: Omit<EvidenceRecord, "id" | "createdAt">) {
+    const result = await this.db.execute(sql`insert into evidence (case_id, investigation_id, subject_type, subject_id, evidence_type, source_type, provider, source_reference, source_url, observed_at, collected_at, method, confidence, raw_reference, content_hash, description, created_by) values (${input.caseId}::uuid, ${input.investigationId}::uuid, ${input.subjectType}, ${input.subjectId}, ${input.evidenceType}, ${input.sourceType}, ${input.provider}, ${input.sourceReference}, ${input.sourceUrl}, ${input.observedAt}::timestamptz, ${input.collectedAt}::timestamptz, ${input.method}, ${input.confidence}, ${input.rawReference}, ${input.contentHash}, ${input.description}, ${input.createdBy}::uuid) returning *`);
+    return evidenceRecord(result.rows[0] as Record<string, unknown>);
+  }
+}
+
+class PostgresAuditRepository implements AuditRepository {
+  constructor(private readonly db: Executor) {}
+  async append(input: Omit<AuditEventRecord, "id" | "createdAt">) {
+    const result = await this.db.execute(sql`insert into audit_events (case_id, actor_id, action, resource_type, resource_id, request_id, result, metadata) values (${input.caseId}::uuid, ${input.actorId}::uuid, ${input.action}, ${input.resourceType}, ${input.resourceId}, ${input.requestId}, ${input.result}, ${JSON.stringify(input.metadata)}::jsonb) returning *`);
+    return auditRecord(result.rows[0] as Record<string, unknown>);
+  }
+  async listByCase(caseId: string) { const result = await this.db.execute(sql`select * from audit_events where case_id = ${caseId}::uuid order by created_at desc`); return result.rows.map((row) => auditRecord(row as Record<string, unknown>)); }
+}
+
+class PostgresBlockchainRepository implements BlockchainRepository {
+  constructor(private readonly db: Executor) {}
+  async upsertWallet(caseId: string, wallet: PersistedBlockchainBundle["wallet"]): Promise<{ id: string }> {
+    const provenance = wallet.provenance;
+    const result = await this.db.execute(sql`insert into wallets (case_id, chain, address, source_type, provider, source_reference, raw_reference, raw_data, retrieved_at)
+      values (${caseId}::uuid, ${wallet.chain}, ${wallet.address}, ${provenance.sourceType}, ${provenance.provider}, ${provenance.sourceReference ?? null}, ${provenance.rawReference ?? null}, ${JSON.stringify(provenance.rawData ?? {})}::jsonb, ${provenance.retrievedAt}::timestamptz)
+      on conflict (case_id, chain, lower(address)) where case_id is not null do update set retrieved_at = excluded.retrieved_at, raw_data = coalesce(wallets.raw_data, excluded.raw_data)
+      returning id`);
+    return { id: text((result.rows[0] as Record<string, unknown>).id) };
+  }
+  async upsertBundle(input: PersistedBlockchainBundle): Promise<{ transactionId: string }> {
+    const wallet = await this.upsertWallet(input.caseId, input.wallet);
+    const { transaction, tokenTransfers, contractInteractions } = input.bundle;
+    const provenance = transaction.provenance;
+    const result = await this.db.execute(sql`insert into blockchain_transactions (case_id, wallet_id, chain, transaction_hash, block_number, block_hash, block_timestamp, confirmations, source_type, provider, source_reference, raw_reference, raw_data, retrieved_at)
+      values (${input.caseId}::uuid, ${wallet.id}::uuid, ${transaction.chain}, ${transaction.transactionHash}, ${transaction.blockNumber ?? null}::bigint, ${transaction.blockHash ?? null}, ${transaction.timestamp ?? null}::timestamptz, ${transaction.confirmations ?? null}, ${provenance.sourceType}, ${provenance.provider}, ${provenance.sourceReference ?? null}, ${provenance.rawReference ?? null}, ${JSON.stringify(provenance.rawData ?? {})}::jsonb, ${provenance.retrievedAt}::timestamptz)
+      on conflict (chain, transaction_hash) do update set confirmations = greatest(coalesce(blockchain_transactions.confirmations, 0), coalesce(excluded.confirmations, 0)), retrieved_at = excluded.retrieved_at, raw_data = coalesce(blockchain_transactions.raw_data, excluded.raw_data)
+      returning id`);
+    const transactionId = text((result.rows[0] as Record<string, unknown>).id);
+    for (const value of transaction.inputs) await this.db.execute(sql`insert into transaction_inputs (transaction_id, input_index, address, value_numeric, previous_transaction_hash, previous_output_index, script) values (${transactionId}::uuid, ${value.index}, ${value.address ?? null}, ${value.value ?? null}::numeric, ${value.previousTransactionHash ?? null}, ${value.previousOutputIndex ?? null}, ${value.script ?? null}) on conflict (transaction_id, input_index) do nothing`);
+    for (const value of transaction.outputs) await this.db.execute(sql`insert into transaction_outputs (transaction_id, output_index, address, value_numeric, script, spending_transaction_hash) values (${transactionId}::uuid, ${value.index}, ${value.address ?? null}, ${value.value}::numeric, ${value.script ?? null}, ${value.spentByTransactionHash ?? null}) on conflict (transaction_id, output_index) do nothing`);
+    for (const transfer of tokenTransfers) { const source = transfer.provenance; await this.db.execute(sql`insert into token_transfers (transaction_id, chain, from_address, to_address, asset, amount_numeric, contract_address, source_type, provider, source_reference, raw_reference, raw_data, retrieved_at) values (${transactionId}::uuid, ${transfer.chain}, ${transfer.from}, ${transfer.to}, ${transfer.asset}, ${transfer.amount}::numeric, ${transfer.contractAddress ?? null}, ${source.sourceType}, ${source.provider}, ${source.sourceReference ?? null}, ${source.rawReference ?? null}, ${JSON.stringify(source.rawData ?? {})}::jsonb, ${source.retrievedAt}::timestamptz) on conflict (transaction_id, chain, from_address, to_address, asset, amount_numeric, coalesce(contract_address, '')) do nothing`); }
+    for (const interaction of contractInteractions) { const source = interaction.provenance; await this.db.execute(sql`insert into contract_interactions (transaction_id, chain, contract_address, method_selector, input_data, source_type, provider, source_reference, raw_reference, raw_data, retrieved_at) values (${transactionId}::uuid, ${interaction.chain}, ${interaction.contractAddress}, ${interaction.methodSelector ?? null}, ${interaction.input ?? null}, ${source.sourceType}, ${source.provider}, ${source.sourceReference ?? null}, ${source.rawReference ?? null}, ${JSON.stringify(source.rawData ?? {})}::jsonb, ${source.retrievedAt}::timestamptz) on conflict (transaction_id, chain, contract_address, coalesce(method_selector, ''), coalesce(input_data, '')) do nothing`); }
+    return { transactionId };
+  }
+  async findTransaction(chain: string, transactionHash: string): Promise<Record<string, unknown> | null> { const result = await this.db.execute(sql`select * from blockchain_transactions where chain = ${chain} and transaction_hash = ${transactionHash}`); return result.rows[0] as Record<string, unknown> ?? null; }
+}
+
+class PostgresUserRepository implements UserRepository {
+  constructor(private readonly db: Executor) {}
+  async findActorByUsername(username: string): Promise<Actor | null> {
+    const result = await this.db.execute(sql`select u.id, u.username, u.status, coalesce(array_agg(distinct r.code) filter (where r.code is not null), '{}') as roles, coalesce(array_agg(distinct p.code) filter (where p.code is not null), '{}') as permissions from users u left join user_roles ur on ur.user_id = u.id left join roles r on r.id = ur.role_id left join role_permissions rp on rp.role_id = r.id left join permissions p on p.id = rp.permission_id where u.username = ${username} group by u.id`);
+    const row = result.rows[0] as Record<string, unknown> | undefined;
+    if (!row || row.status !== "ACTIVE") return null;
+    return { id: text(row.id), username: text(row.username), roles: (row.roles as string[]) ?? [], permissions: ((row.permissions as string[]) ?? []) as Actor["permissions"] };
+  }
+}
+
+export class PostgresRepositories implements TransactionCoordinator {
+  constructor(private readonly db: CashnetDatabase) {}
+  context(): RepositoryContext {
+    const executor = this.db as Executor;
+    return { cases: new PostgresCaseRepository(executor), investigations: new PostgresInvestigationRepository(executor), walletSubjects: new PostgresWalletSubjectRepository(executor), evidence: new PostgresEvidenceRepository(executor), audit: new PostgresAuditRepository(executor), users: new PostgresUserRepository(executor), blockchain: new PostgresBlockchainRepository(executor) };
+  }
+  async transaction<T>(work: (repositories: RepositoryContext) => Promise<T>): Promise<T> {
+    return this.db.transaction(async (transaction) => {
+      const executor = transaction as unknown as Executor;
+      return work({ cases: new PostgresCaseRepository(executor), investigations: new PostgresInvestigationRepository(executor), walletSubjects: new PostgresWalletSubjectRepository(executor), evidence: new PostgresEvidenceRepository(executor), audit: new PostgresAuditRepository(executor), users: new PostgresUserRepository(executor), blockchain: new PostgresBlockchainRepository(executor) });
+    });
+  }
+}

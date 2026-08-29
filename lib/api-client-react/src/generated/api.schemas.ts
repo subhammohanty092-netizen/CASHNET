@@ -259,3 +259,382 @@ export interface Report {
   disclaimer: string;
 }
 
+export type PersistentCaseStatus = typeof PersistentCaseStatus[keyof typeof PersistentCaseStatus];
+
+
+export const PersistentCaseStatus = {
+  OPEN: 'OPEN',
+  IN_PROGRESS: 'IN_PROGRESS',
+  ON_HOLD: 'ON_HOLD',
+  CLOSED: 'CLOSED',
+  ARCHIVED: 'ARCHIVED',
+} as const;
+
+export type PersistentCaseInvestigationAuthorizationStatus = typeof PersistentCaseInvestigationAuthorizationStatus[keyof typeof PersistentCaseInvestigationAuthorizationStatus];
+
+
+export const PersistentCaseInvestigationAuthorizationStatus = {
+  PENDING: 'PENDING',
+  APPROVED: 'APPROVED',
+  REJECTED: 'REJECTED',
+} as const;
+
+export interface PersistentCase {
+  id: string;
+  caseNumber: string;
+  title: string;
+  description: string;
+  fraudType: string;
+  reportedAmount: string;
+  status: PersistentCaseStatus;
+  priority: string;
+  investigationAuthorizationStatus: PersistentCaseInvestigationAuthorizationStatus;
+  /** @nullable */
+  createdBy?: string | null;
+  /** @nullable */
+  assignedTo?: string | null;
+  /** @nullable */
+  closedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PersistentCaseInput {
+  caseNumber: string;
+  title: string;
+  description: string;
+  fraudType: string;
+  reportedAmount: string;
+  priority?: string;
+}
+
+export type PersistentCasePatchStatus = typeof PersistentCasePatchStatus[keyof typeof PersistentCasePatchStatus];
+
+
+export const PersistentCasePatchStatus = {
+  OPEN: 'OPEN',
+  IN_PROGRESS: 'IN_PROGRESS',
+  ON_HOLD: 'ON_HOLD',
+  CLOSED: 'CLOSED',
+  ARCHIVED: 'ARCHIVED',
+} as const;
+
+export type PersistentCasePatchInvestigationAuthorizationStatus = typeof PersistentCasePatchInvestigationAuthorizationStatus[keyof typeof PersistentCasePatchInvestigationAuthorizationStatus];
+
+
+export const PersistentCasePatchInvestigationAuthorizationStatus = {
+  PENDING: 'PENDING',
+  APPROVED: 'APPROVED',
+  REJECTED: 'REJECTED',
+} as const;
+
+export interface PersistentCasePatch {
+  title?: string;
+  description?: string;
+  priority?: string;
+  status?: PersistentCasePatchStatus;
+  /** @nullable */
+  assignedTo?: string | null;
+  investigationAuthorizationStatus?: PersistentCasePatchInvestigationAuthorizationStatus;
+}
+
+export type PersistentInvestigationStatus = typeof PersistentInvestigationStatus[keyof typeof PersistentInvestigationStatus];
+
+
+export const PersistentInvestigationStatus = {
+  CREATED: 'CREATED',
+  AUTHORIZED: 'AUTHORIZED',
+  RUNNING: 'RUNNING',
+  COMPLETED: 'COMPLETED',
+  PARTIAL: 'PARTIAL',
+  FAILED: 'FAILED',
+  CANCELLED: 'CANCELLED',
+} as const;
+
+export interface PersistentInvestigation {
+  id: string;
+  caseId: string;
+  status: PersistentInvestigationStatus;
+  /** @nullable */
+  chain?: string | null;
+  /** @nullable */
+  walletAddress?: string | null;
+  investigationDepth: number;
+  /** @nullable */
+  startTime?: string | null;
+  /** @nullable */
+  endTime?: string | null;
+  /** @nullable */
+  createdBy?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface InvestigationInput {
+  caseId: string;
+  chain?: string;
+  walletAddress?: string;
+  /**
+     * @minimum 1
+     * @maximum 10
+     */
+  investigationDepth?: number;
+  startTime?: string;
+  endTime?: string;
+}
+
+export type InvestigationTransitionInputStatus = typeof InvestigationTransitionInputStatus[keyof typeof InvestigationTransitionInputStatus];
+
+
+export const InvestigationTransitionInputStatus = {
+  AUTHORIZED: 'AUTHORIZED',
+  RUNNING: 'RUNNING',
+  COMPLETED: 'COMPLETED',
+  PARTIAL: 'PARTIAL',
+  FAILED: 'FAILED',
+  CANCELLED: 'CANCELLED',
+} as const;
+
+export interface InvestigationTransitionInput {
+  status: InvestigationTransitionInputStatus;
+}
+
+export type WalletInvestigationInputLabel = typeof WalletInvestigationInputLabel[keyof typeof WalletInvestigationInputLabel];
+
+
+export const WalletInvestigationInputLabel = {
+  REPORTED: 'REPORTED',
+  SUSPECT: 'SUSPECT',
+  SUBJECT: 'SUBJECT',
+  OBSERVED: 'OBSERVED',
+  UNKNOWN: 'UNKNOWN',
+} as const;
+
+export type WalletInvestigationInput = InvestigationInput & {
+  label?: WalletInvestigationInputLabel;
+} & Required<Pick<InvestigationInput & {
+  label?: WalletInvestigationInputLabel;
+}, 'chain' | 'walletAddress'>>;
+
+export interface WalletSubject {
+  id: string;
+  caseId: string;
+  investigationId: string;
+  chain: string;
+  walletAddress: string;
+  label: string;
+  createdAt: string;
+}
+
+export interface WalletInvestigationResult {
+  investigation: PersistentInvestigation;
+  walletSubject: WalletSubject;
+}
+
+export interface ProviderProvenance {
+  sourceType: string;
+  provider: string;
+  sourceReference?: string;
+  rawReference?: string;
+  retrievedAt: string;
+  method: string;
+}
+
+export interface NormalizedWallet {
+  id: string;
+  address: string;
+  chain: string;
+  balance?: string;
+  balanceUnit?: string;
+  createdAt: string;
+  provenance: ProviderProvenance;
+}
+
+export type NormalizedTransactionInputsItem = { [key: string]: unknown };
+
+export type NormalizedTransactionOutputsItem = { [key: string]: unknown };
+
+export interface NormalizedTransaction {
+  id: string;
+  chain: string;
+  transactionHash: string;
+  timestamp?: string;
+  blockNumber?: string;
+  blockHash?: string;
+  confirmations?: number;
+  from?: string;
+  to?: string;
+  value?: string;
+  fee?: string;
+  executionStatus?: string;
+  inputs: NormalizedTransactionInputsItem[];
+  outputs: NormalizedTransactionOutputsItem[];
+  provenance: ProviderProvenance;
+}
+
+export type NormalizedTransactionBundleTokenTransfersItem = { [key: string]: unknown };
+
+export type NormalizedTransactionBundleContractInteractionsItem = { [key: string]: unknown };
+
+export interface NormalizedTransactionBundle {
+  provider: string;
+  transaction: NormalizedTransaction;
+  tokenTransfers: NormalizedTransactionBundleTokenTransfersItem[];
+  contractInteractions: NormalizedTransactionBundleContractInteractionsItem[];
+}
+
+export type LiveWalletResultTransactionsItem = { [key: string]: unknown };
+
+export type LiveWalletResultTokenTransfersItem = { [key: string]: unknown };
+
+export type LiveWalletResultInternalTransactionsItem = { [key: string]: unknown };
+
+export type LiveWalletResultCapabilities = {[key: string]: boolean};
+
+export interface LiveWalletResult {
+  provider: string;
+  wallet?: NormalizedWallet | null;
+  transactions: LiveWalletResultTransactionsItem[];
+  tokenTransfers: LiveWalletResultTokenTransfersItem[];
+  internalTransactions: LiveWalletResultInternalTransactionsItem[];
+  capabilities: LiveWalletResultCapabilities;
+}
+
+export interface CollectionResult {
+  investigationId: string;
+  status: string;
+  provider: string;
+  transactionCount: number;
+  tokenTransferCount: number;
+}
+
+export interface PersistentEvidence {
+  id: string;
+  /** @nullable */
+  caseId?: string | null;
+  /** @nullable */
+  investigationId?: string | null;
+  subjectType: string;
+  subjectId: string;
+  evidenceType: string;
+  sourceType: string;
+  /** @nullable */
+  provider?: string | null;
+  /** @nullable */
+  sourceReference?: string | null;
+  /** @nullable */
+  sourceUrl?: string | null;
+  /** @nullable */
+  observedAt?: string | null;
+  /** @nullable */
+  collectedAt?: string | null;
+  /** @nullable */
+  method?: string | null;
+  /**
+     * @minimum 0
+     * @maximum 1
+     * @nullable
+     */
+  confidence?: number | null;
+  /** @nullable */
+  rawReference?: string | null;
+  /** @nullable */
+  contentHash?: string | null;
+  /** @nullable */
+  description?: string | null;
+  /** @nullable */
+  createdBy?: string | null;
+  createdAt: string;
+}
+
+export type EvidenceInputEvidenceType = typeof EvidenceInputEvidenceType[keyof typeof EvidenceInputEvidenceType];
+
+
+export const EvidenceInputEvidenceType = {
+  BLOCKCHAIN_FACT: 'BLOCKCHAIN_FACT',
+  TRANSACTION: 'TRANSACTION',
+  ADDRESS_LABEL: 'ADDRESS_LABEL',
+  ENTITY_MATCH: 'ENTITY_MATCH',
+  VASP_MATCH: 'VASP_MATCH',
+  GRAPH_RELATION: 'GRAPH_RELATION',
+  RISK_INDICATOR: 'RISK_INDICATOR',
+  DOCUMENT: 'DOCUMENT',
+  OSINT: 'OSINT',
+  OTHER: 'OTHER',
+} as const;
+
+export type EvidenceInputSourceType = typeof EvidenceInputSourceType[keyof typeof EvidenceInputSourceType];
+
+
+export const EvidenceInputSourceType = {
+  SYNTHETIC: 'SYNTHETIC',
+  API: 'API',
+  RPC: 'RPC',
+  DATASET: 'DATASET',
+  INFERENCE: 'INFERENCE',
+  OTHER: 'OTHER',
+  USER_PROVIDED: 'USER_PROVIDED',
+} as const;
+
+export interface EvidenceInput {
+  caseId: string;
+  /** @nullable */
+  investigationId?: string | null;
+  subjectType: string;
+  subjectId: string;
+  evidenceType: EvidenceInputEvidenceType;
+  sourceType: EvidenceInputSourceType;
+  /** @nullable */
+  provider?: string | null;
+  /** @nullable */
+  sourceReference?: string | null;
+  /** @nullable */
+  sourceUrl?: string | null;
+  /** @nullable */
+  observedAt?: string | null;
+  /** @nullable */
+  collectedAt?: string | null;
+  /** @nullable */
+  method?: string | null;
+  /**
+     * @minimum 0
+     * @maximum 1
+     * @nullable
+     */
+  confidence?: number | null;
+  /** @nullable */
+  rawReference?: string | null;
+  /** @nullable */
+  contentHash?: string | null;
+  /** @nullable */
+  description?: string | null;
+}
+
+export type AuditEventResult = typeof AuditEventResult[keyof typeof AuditEventResult];
+
+
+export const AuditEventResult = {
+  SUCCESS: 'SUCCESS',
+  DENIED: 'DENIED',
+  FAILURE: 'FAILURE',
+} as const;
+
+export type AuditEventMetadata = { [key: string]: unknown };
+
+export interface AuditEvent {
+  id: string;
+  /** @nullable */
+  caseId?: string | null;
+  /** @nullable */
+  actorId?: string | null;
+  action: string;
+  resourceType: string;
+  /** @nullable */
+  resourceId?: string | null;
+  /** @nullable */
+  requestId?: string | null;
+  result: AuditEventResult;
+  metadata: AuditEventMetadata;
+  createdAt: string;
+}
+
