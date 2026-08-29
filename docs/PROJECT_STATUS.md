@@ -9,7 +9,7 @@
 - Phase 2 PostgreSQL/Drizzle persistence, ordered migration ledger, cases, investigation/wallet subjects, evidence, RBAC, case isolation, and append-only audit events.
 - Phase 3 provider contracts/router, Etherscan V2, Esplora-compatible Bitcoin, TronGrid, normalizers, timeout/retry/rate-limit handling, persistence integration, OpenAPI and generated artifacts.
 - Phase 4 derived relationship persistence, graph nodes/edges, bounded BFS, direction/time/amount/asset filters, deterministic ranking, evidence linkage, authorization/audit integration, and graph OpenAPI contract.
-- Typecheck, 13 unit/repository/authorization/provider/migration regression tests, OpenAPI generation, API production build, and diff check in this workspace.
+- Typecheck, 18 unit/repository/authorization/provider/migration/graph regression tests, OpenAPI generation, API production build, and diff check in this workspace.
 
 ## Environment-dependent pending work
 
