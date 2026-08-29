@@ -1,8 +1,8 @@
-# CASHNET Phase 5 plan — address intelligence, clustering, and VASP attribution
+# CASHNET Phase 5 plan and implementation boundary
 
 ## Status and boundary
 
-**This is a design plan only. No Phase 5 code, data import, provider call, clustering, entity label, VASP result, or Chainabuse integration is implemented by this document.** Phase 4 graph relationships remain evidence-backed blockchain observations or explicitly marked UTXO projections, not ownership claims.
+This document remains the Phase 5 design record. The bounded implementation is now committed in `3225be0`: it provides schema/repository/service/API support for approved local address-label observations, cautious Bitcoin inference, deterministic candidate evidence fusion, review records, RBAC, and audit. It imports no label dataset by default, makes no Chainabuse call, and does not identify a person. Phase 4 graph relationships remain evidence-backed blockchain observations or explicitly marked UTXO projections, not ownership claims.
 
 ## Goal
 
@@ -29,9 +29,9 @@ The output must never turn an address into a real-world person. It must remain a
 
 No source becomes production truth merely because it is public or present in `references/`. Import jobs must preserve source URL/reference, dataset version, licence, retrieval date, hash, transformation method, and reviewer decision.
 
-## Proposed architecture
+## Implemented architecture
 
-1. Define ports such as `AddressIntelligenceProvider`, `ClusterInferenceService`, and `VaspCandidateService`; Phase 4 already reserves empty intelligence-provider interfaces.
+1. `AddressIntelligenceProvider`, `BitcoinClusterInferenceService`, and `VaspCandidateService` are implemented with repository ports.
 2. Store source-labelled observations separately from normalized blockchain facts and derived relationships.
 3. Require a case-authorized investigation and `INTELLIGENCE_READ`/`INTELLIGENCE_EXECUTE`-style permissions proposed through a Phase 5 RBAC migration.
 4. Produce immutable evidence records and audit each lookup/import/scoring action.
@@ -55,15 +55,11 @@ Use deterministic, explainable evidence fusion only: approved public label match
 
 Community detection, Louvain, Leiden, graph ML, and GNN are explicitly deferred until deterministic evidence, data governance, evaluation datasets, and false-positive controls are established.
 
-## Delivery sequence
+## Delivery and pending validation
 
-1. Licence/provenance and retention decision record.
-2. Phase 5 schema, migration ledger entry, repository ports, authorization permissions, and audited import/run model.
-3. Read-only approved label-source adapter with fixtures and conflict/freshness handling.
-4. Explainable Bitcoin inference model with negative/CoinJoin/ambiguous tests.
-5. Deterministic VASP-candidate scorer with evidence links, review state, and export-safe APIs.
-6. Integration, case-isolation, migration, source-provenance, false-positive, and regression tests.
-7. Only after governance review: operational source onboarding and controlled real-data validation.
+1. Completed: schema/migration ledger, repository ports, RBAC, audit, approved-local label adapter, bounded inference, deterministic scorer, OpenAPI, and 25 tests.
+2. Pending: dataset-level licence/provenance/retention approval, configured clean PostgreSQL migration, and controlled live source validation.
+3. Deferred: Chainabuse onboarding, graph ML/GNN, ML, PS184, and any real-world identity workflow.
 
 ## Non-goals
 
