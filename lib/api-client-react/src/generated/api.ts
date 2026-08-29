@@ -32,6 +32,7 @@ import type {
   HealthStatus,
   Intervention,
   InterventionInput,
+  InvestigationGraph,
   InvestigationInput,
   InvestigationTransitionInput,
   LiveWalletResult,
@@ -43,6 +44,7 @@ import type {
   PersistentInvestigation,
   PredictionResult,
   Report,
+  TraceInvestigationGraphParams,
   Wallet,
   WalletInvestigationInput,
   WalletInvestigationResult
@@ -1983,6 +1985,102 @@ export const useCollectInvestigationProviderData = <TError = unknown,
       > => {
       return useMutation(getCollectInvestigationProviderDataMutationOptions(options));
     }
+
+export const getTraceInvestigationGraphUrl = (id: string,
+    params?: TraceInvestigationGraphParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/investigations/${id}/graph?${stringifiedParams}` : `/api/v1/investigations/${id}/graph`
+}
+
+/**
+ * @summary Trace stored blockchain relationships with bounded BFS
+ */
+export const traceInvestigationGraph = async (id: string,
+    params?: TraceInvestigationGraphParams, options?: RequestInit): Promise<InvestigationGraph> => {
+
+  const res = await fetch(getTraceInvestigationGraphUrl(id,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: InvestigationGraph = body ? JSON.parse(body) : {}
+  return data
+}
+
+
+
+
+
+export const getTraceInvestigationGraphQueryKey = (id: string,
+    params?: TraceInvestigationGraphParams,) => {
+    return [
+    `/api/v1/investigations/${id}/graph`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getTraceInvestigationGraphQueryOptions = <TData = Awaited<ReturnType<typeof traceInvestigationGraph>>, TError = unknown>(id: string,
+    params?: TraceInvestigationGraphParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof traceInvestigationGraph>>, TError, TData>, fetch?: RequestInit}
+) => {
+
+const {query: queryOptions, fetch: fetchOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getTraceInvestigationGraphQueryKey(id,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof traceInvestigationGraph>>> = ({ signal }) => traceInvestigationGraph(id,params, { signal, ...fetchOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof traceInvestigationGraph>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type TraceInvestigationGraphQueryResult = NonNullable<Awaited<ReturnType<typeof traceInvestigationGraph>>>
+export type TraceInvestigationGraphQueryError = unknown
+
+
+/**
+ * @summary Trace stored blockchain relationships with bounded BFS
+ */
+
+export function useTraceInvestigationGraph<TData = Awaited<ReturnType<typeof traceInvestigationGraph>>, TError = unknown>(
+ id: string,
+    params?: TraceInvestigationGraphParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof traceInvestigationGraph>>, TError, TData>, fetch?: RequestInit}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getTraceInvestigationGraphQueryOptions(id,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getGetLiveWalletProfileUrl = (chain: 'BITCOIN' | 'ETHEREUM' | 'TRON',
     address: string,) => {

@@ -266,6 +266,24 @@ paths:
       summary: Collect authorized live blockchain facts and persist normalized results
       parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
       responses: { "200": { description: Collection result, content: { application/json: { schema: { $ref: "#/components/schemas/CollectionResult" } } } } }
+  /v1/investigations/{id}/graph:
+    get:
+      operationId: traceInvestigationGraph
+      tags: [cashnet]
+      summary: Trace stored blockchain relationships with bounded BFS
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: depth, in: query, schema: { type: integer, minimum: 1, maximum: 5, default: 2 } }
+        - { name: direction, in: query, schema: { type: string, enum: [OUTGOING, INCOMING, BOTH], default: OUTGOING } }
+        - { name: max_neighbors, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 25 } }
+        - { name: max_nodes, in: query, schema: { type: integer, minimum: 1, maximum: 1000, default: 250 } }
+        - { name: max_edges, in: query, schema: { type: integer, minimum: 1, maximum: 2000, default: 500 } }
+        - { name: min_amount, in: query, schema: { type: string, pattern: '^\\d+(\\.\\d+)?$' } }
+        - { name: max_amount, in: query, schema: { type: string, pattern: '^\\d+(\\.\\d+)?$' } }
+        - { name: asset, in: query, schema: { type: string } }
+        - { name: start_time, in: query, schema: { type: string, format: date-time } }
+        - { name: end_time, in: query, schema: { type: string, format: date-time } }
+      responses: { "200": { description: Evidence-backed graph from stored normalized facts, content: { application/json: { schema: { $ref: "#/components/schemas/InvestigationGraph" } } } } }
   /v1/wallets/{chain}/{address}:
     get:
       operationId: getLiveWalletProfile
@@ -777,4 +795,62 @@ components:
         result: { type: string, enum: [SUCCESS, DENIED, FAILURE] }
         metadata: { type: object, additionalProperties: true }
         createdAt: { type: string, format: date-time }
+    GraphEvidence:
+      type: object
+      required: [transactionHash, method, derivationSourceType]
+      properties:
+        transactionHash: { type: string }
+        provider: { type: [string, "null"] }
+        sourceReference: { type: [string, "null"] }
+        rawReference: { type: [string, "null"] }
+        retrievedAt: { type: [string, "null"], format: date-time }
+        method: { type: string }
+        derivationSourceType: { type: string, enum: [API, INFERENCE] }
+    InvestigationGraphNode:
+      type: object
+      required: [id, chain, address, nodeType]
+      properties:
+        id: { type: string }
+        chain: { type: string }
+        address: { type: string }
+        nodeType: { type: string, enum: [EOA, ADDRESS, CONTRACT, UNKNOWN] }
+        firstSeen: { type: [string, "null"], format: date-time }
+        lastSeen: { type: [string, "null"], format: date-time }
+    InvestigationGraphEdge:
+      type: object
+      required: [id, chain, transactionHash, fromAddress, toAddress, relationshipType, asset, amount, evidence]
+      properties:
+        id: { type: string }
+        chain: { type: string }
+        transactionHash: { type: string }
+        fromAddress: { type: string }
+        toAddress: { type: string }
+        relationshipType: { type: string, enum: [TRANSFER, TOKEN_TRANSFER, INTERNAL_TRANSFER, CONTRACT_INTERACTION, UTXO_SPEND] }
+        asset: { type: string }
+        amount: { type: string }
+        tokenContract: { type: [string, "null"] }
+        timestamp: { type: [string, "null"], format: date-time }
+        blockNumber: { type: [string, "null"] }
+        status: { type: [string, "null"] }
+        evidence: { $ref: "#/components/schemas/GraphEvidence" }
+    InvestigationGraphPath:
+      type: object
+      required: [rank, nodes, edgeIds, hopCount, evidenceComplete]
+      properties:
+        rank: { type: number, minimum: 1 }
+        nodes: { type: array, items: { type: object, required: [chain, address], properties: { chain: { type: string }, address: { type: string } } } }
+        edgeIds: { type: array, items: { type: string } }
+        hopCount: { type: number, minimum: 0 }
+        evidenceComplete: { type: boolean }
+    InvestigationGraph:
+      type: object
+      required: [status, nodes, edges, paths, metadata, limitsApplied, evidenceReferences]
+      properties:
+        status: { type: string, enum: [OK, INSUFFICIENT_DATA] }
+        nodes: { type: array, items: { $ref: "#/components/schemas/InvestigationGraphNode" } }
+        edges: { type: array, items: { $ref: "#/components/schemas/InvestigationGraphEdge" } }
+        paths: { type: array, items: { $ref: "#/components/schemas/InvestigationGraphPath" } }
+        metadata: { type: object, additionalProperties: true }
+        limitsApplied: { type: object, additionalProperties: true }
+        evidenceReferences: { type: array, items: { $ref: "#/components/schemas/GraphEvidence" } }
 

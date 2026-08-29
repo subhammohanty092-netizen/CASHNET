@@ -5,6 +5,7 @@ import type { InvestigationRepository } from "./investigation-repository";
 import type { UserRepository } from "./user-repository";
 import type { WalletSubjectRepository } from "./wallet-subject-repository";
 import type { BlockchainRepository } from "./blockchain-repository";
+import type { GraphRepository } from "./graph-repository";
 
 export type RepositoryContext = {
   cases: CaseRepository;
@@ -14,6 +15,7 @@ export type RepositoryContext = {
   audit: AuditRepository;
   users: UserRepository;
   blockchain: BlockchainRepository;
+  graph: GraphRepository;
 };
 
 export interface TransactionCoordinator {

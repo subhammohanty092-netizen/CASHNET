@@ -1045,6 +1045,105 @@ export const CollectInvestigationProviderDataResponse = zod.object({
 
 
 /**
+ * @summary Trace stored blockchain relationships with bounded BFS
+ */
+export const TraceInvestigationGraphZodParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const traceInvestigationGraphQueryDepthDefault = 2;
+export const traceInvestigationGraphQueryDepthMax = 5;
+
+export const traceInvestigationGraphQueryDirectionDefault = `OUTGOING`;
+export const traceInvestigationGraphQueryMaxNeighborsDefault = 25;
+export const traceInvestigationGraphQueryMaxNeighborsMax = 100;
+
+export const traceInvestigationGraphQueryMaxNodesDefault = 250;
+export const traceInvestigationGraphQueryMaxNodesMax = 1000;
+
+export const traceInvestigationGraphQueryMaxEdgesDefault = 500;
+export const traceInvestigationGraphQueryMaxEdgesMax = 2000;
+
+export const traceInvestigationGraphQueryMinAmountRegExp = new RegExp('^\\\\d+(\\\\.\\\\d+)?$');
+export const traceInvestigationGraphQueryMaxAmountRegExp = new RegExp('^\\\\d+(\\\\.\\\\d+)?$');
+
+
+export const TraceInvestigationGraphZodQueryParams = zod.object({
+  "depth": zod.coerce.number().int().min(1).max(traceInvestigationGraphQueryDepthMax).default(traceInvestigationGraphQueryDepthDefault),
+  "direction": zod.enum(['OUTGOING', 'INCOMING', 'BOTH']).default(traceInvestigationGraphQueryDirectionDefault),
+  "max_neighbors": zod.coerce.number().int().min(1).max(traceInvestigationGraphQueryMaxNeighborsMax).default(traceInvestigationGraphQueryMaxNeighborsDefault),
+  "max_nodes": zod.coerce.number().int().min(1).max(traceInvestigationGraphQueryMaxNodesMax).default(traceInvestigationGraphQueryMaxNodesDefault),
+  "max_edges": zod.coerce.number().int().min(1).max(traceInvestigationGraphQueryMaxEdgesMax).default(traceInvestigationGraphQueryMaxEdgesDefault),
+  "min_amount": zod.coerce.string().regex(traceInvestigationGraphQueryMinAmountRegExp).optional(),
+  "max_amount": zod.coerce.string().regex(traceInvestigationGraphQueryMaxAmountRegExp).optional(),
+  "asset": zod.coerce.string().optional(),
+  "start_time": zod.date().optional(),
+  "end_time": zod.date().optional()
+})
+
+
+export const traceInvestigationGraphResponsePathsItemHopCountMin = 0;
+
+
+
+export const TraceInvestigationGraphZodResponse = zod.object({
+  "status": zod.enum(['OK', 'INSUFFICIENT_DATA']),
+  "nodes": zod.array(zod.object({
+  "id": zod.string(),
+  "chain": zod.string(),
+  "address": zod.string(),
+  "nodeType": zod.enum(['EOA', 'ADDRESS', 'CONTRACT', 'UNKNOWN']),
+  "firstSeen": zod.coerce.date().nullish(),
+  "lastSeen": zod.coerce.date().nullish()
+})),
+  "edges": zod.array(zod.object({
+  "id": zod.string(),
+  "chain": zod.string(),
+  "transactionHash": zod.string(),
+  "fromAddress": zod.string(),
+  "toAddress": zod.string(),
+  "relationshipType": zod.enum(['TRANSFER', 'TOKEN_TRANSFER', 'INTERNAL_TRANSFER', 'CONTRACT_INTERACTION', 'UTXO_SPEND']),
+  "asset": zod.string(),
+  "amount": zod.string(),
+  "tokenContract": zod.string().nullish(),
+  "timestamp": zod.coerce.date().nullish(),
+  "blockNumber": zod.string().nullish(),
+  "status": zod.string().nullish(),
+  "evidence": zod.object({
+  "transactionHash": zod.string(),
+  "provider": zod.string().nullish(),
+  "sourceReference": zod.string().nullish(),
+  "rawReference": zod.string().nullish(),
+  "retrievedAt": zod.coerce.date().nullish(),
+  "method": zod.string(),
+  "derivationSourceType": zod.enum(['API', 'INFERENCE'])
+})
+})),
+  "paths": zod.array(zod.object({
+  "rank": zod.number().min(1),
+  "nodes": zod.array(zod.object({
+  "chain": zod.string(),
+  "address": zod.string()
+})),
+  "edgeIds": zod.array(zod.string()),
+  "hopCount": zod.number().min(traceInvestigationGraphResponsePathsItemHopCountMin),
+  "evidenceComplete": zod.boolean()
+})),
+  "metadata": zod.record(zod.string(), zod.unknown()),
+  "limitsApplied": zod.record(zod.string(), zod.unknown()),
+  "evidenceReferences": zod.array(zod.object({
+  "transactionHash": zod.string(),
+  "provider": zod.string().nullish(),
+  "sourceReference": zod.string().nullish(),
+  "rawReference": zod.string().nullish(),
+  "retrievedAt": zod.coerce.date().nullish(),
+  "method": zod.string(),
+  "derivationSourceType": zod.enum(['API', 'INFERENCE'])
+}))
+})
+
+
+/**
  * @summary Read normalized wallet facts through an authorized provider adapter
  */
 export const GetLiveWalletProfileParams = zod.object({

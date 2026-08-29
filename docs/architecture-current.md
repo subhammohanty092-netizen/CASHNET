@@ -1,6 +1,6 @@
-# CASHNET current architecture — Phase 3
+# CASHNET current architecture — Phase 4
 
-This is the implemented Phase 3 architecture. It documents boundaries, not planned Phase 4 graph traversal or attribution.
+This is the implemented Phase 4 architecture. It preserves Phase 3 collection and adds bounded graph tracing over stored facts only; attribution remains deferred.
 
 ## 1. Overall system
 
@@ -30,6 +30,9 @@ This is the implemented Phase 3 architecture. It documents boundaries, not plann
                                                │ raw facts
                                                ▼
                                  normalizers → repositories → PostgreSQL
+                                                        │
+                                                        ▼
+                            derived graph relationships → bounded BFS
                                                         │
                                                         ▼
                                             provenance/evidence/audit
@@ -138,3 +141,13 @@ provider raw payload
 
 Observed blockchain fact ≠ analytical inference ≠ entity label ≠ VASP candidate ≠ real-world identity.
 ```
+
+## 9. Graph tracing flow
+
+```text
+stored normalized facts → deterministic relationship extractor
+                       → investigation_graph_relationships (derived)
+                       → case-authorized bounded BFS → evidence-backed graph response
+```
+
+The graph service never calls external providers. It supports direction, time, exact-decimal amount and asset filters, reports limits/truncation, and keeps Bitcoin UTXO projections explicitly inferred.

@@ -2,7 +2,7 @@
 
 ## Overall status
 
-Estimated implementation completion is **58%** of the planned CASHNET roadmap. Foundation, contracts, Phase 1, Phase 2 persistence/RBAC, and the Phase 3 provider pipeline are implemented. Production database deployment, configured provider smoke tests, frontend wiring, graph work, approved external adapter onboarding, and later intelligence phases remain.
+Estimated implementation completion is **65%** of the planned CASHNET roadmap. Foundation, contracts, Phase 1, Phase 2 persistence/RBAC, Phase 3 provider collection, and Phase 4 bounded graph tracing are implemented. Production database deployment, configured provider smoke tests, frontend wiring, approved external adapter onboarding, and later intelligence phases remain.
 
 ## Repository integration
 
@@ -10,11 +10,11 @@ Estimated implementation completion is **58%** of the planned CASHNET roadmap. F
 
 ## Backend pipeline
 
-The backend now provides versioned Phase 2/3 API boundaries alongside untouched legacy synthetic `/api/*` routes. A development actor boundary, persisted roles/permissions, non-enumerating case access, immutable audit records, provider routing, HTTP failure handling, normalizers, repositories, and PostgreSQL transactions form the backend path. Live blockchain results are never fabricated and only run when authorized mode plus the relevant server configuration is present.
+The backend now provides versioned Phase 2–4 API boundaries alongside untouched legacy synthetic `/api/*` routes. A development actor boundary, persisted roles/permissions, non-enumerating case access, immutable audit records, provider routing, normalizers, repositories, PostgreSQL transactions, and a provider-free graph service form the backend path. The graph reads stored normalized data, enforces limits, and preserves evidence links; live blockchain results are never fabricated.
 
 ## Working verification
 
-`pnpm run typecheck`, `pnpm -r --if-present run test`, `git diff --check`, `pnpm --filter @workspace/api-spec run codegen`, and `pnpm --filter @workspace/api-server run build` pass in this workspace. The provider tests run deterministic mocked Etherscan V2, Esplora, TronGrid, rate-limit, router, and migration-ledger paths. OpenAPI generation completed through the project’s configured Orval workflow.
+`pnpm run typecheck`, `pnpm -r --if-present run test`, `git diff --check`, `pnpm --filter @workspace/api-spec run codegen`, and `pnpm --filter @workspace/api-server run build` pass in this workspace. The 18 tests cover deterministic provider, authorization, migration, Ethereum/Bitcoin/TRON graph, filtering, loop, and fan-out paths. OpenAPI generation completed through the project’s configured Orval workflow.
 
 ## Environment status
 

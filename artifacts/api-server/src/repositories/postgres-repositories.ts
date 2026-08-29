@@ -8,7 +8,9 @@ import type { RepositoryContext, TransactionCoordinator } from "./repository-con
 import type { UserRepository } from "./user-repository";
 import type { WalletSubjectRepository } from "./wallet-subject-repository";
 import type { BlockchainRepository, PersistedBlockchainBundle } from "./blockchain-repository";
-import type { Actor, AuditEventRecord, CaseRecord, EvidenceRecord, InvestigationRecord, WalletSubjectRecord } from "./types";
+import type { GraphRepository } from "./graph-repository";
+import type { Actor, AuditEventRecord, CaseRecord, EvidenceRecord, GraphRelationshipInput, GraphRelationshipRecord, InvestigationRecord, WalletSubjectRecord } from "./types";
+import { extractRelationships } from "../services/graph/relationship-extractor";
 
 type Executor = Pick<CashnetDatabase, "execute">;
 const iso = (value: unknown): string | null => value == null ? null : new Date(String(value)).toISOString();
@@ -26,6 +28,9 @@ function evidenceRecord(row: Record<string, unknown>): EvidenceRecord {
 }
 function auditRecord(row: Record<string, unknown>): AuditEventRecord {
   return { id: text(row.id), caseId: row.case_id == null ? null : text(row.case_id), actorId: row.actor_id == null ? null : text(row.actor_id), action: text(row.action), resourceType: text(row.resource_type), resourceId: row.resource_id == null ? null : text(row.resource_id), requestId: row.request_id == null ? null : text(row.request_id), result: row.result as AuditEventRecord["result"], metadata: (row.metadata as Record<string, unknown>) ?? {}, createdAt: iso(row.created_at)! };
+}
+function graphRelationshipRecord(row: Record<string, unknown>): GraphRelationshipRecord {
+  return { id: text(row.id), caseId: text(row.case_id), chain: text(row.chain), transactionHash: text(row.transaction_hash), fromAddress: text(row.from_address), toAddress: text(row.to_address), relationshipType: row.relationship_type as GraphRelationshipRecord["relationshipType"], asset: text(row.asset), amount: text(row.amount_numeric), tokenContract: row.token_contract == null ? null : text(row.token_contract), blockNumber: row.block_number == null ? null : text(row.block_number), timestamp: iso(row.block_timestamp), executionStatus: row.execution_status == null ? null : text(row.execution_status), derivationSourceType: row.derivation_source_type as GraphRelationshipRecord["derivationSourceType"], provider: row.provider == null ? null : text(row.provider), sourceReference: row.source_reference == null ? null : text(row.source_reference), rawReference: row.raw_reference == null ? null : text(row.raw_reference), retrievedAt: iso(row.retrieved_at), method: text(row.method), createdAt: iso(row.created_at)! };
 }
 
 class PostgresCaseRepository implements CaseRepository {
@@ -112,18 +117,30 @@ class PostgresBlockchainRepository implements BlockchainRepository {
     const wallet = await this.upsertWallet(input.caseId, input.wallet);
     const { transaction, tokenTransfers, contractInteractions } = input.bundle;
     const provenance = transaction.provenance;
-    const result = await this.db.execute(sql`insert into blockchain_transactions (case_id, wallet_id, chain, transaction_hash, block_number, block_hash, block_timestamp, confirmations, source_type, provider, source_reference, raw_reference, raw_data, retrieved_at)
-      values (${input.caseId}::uuid, ${wallet.id}::uuid, ${transaction.chain}, ${transaction.transactionHash}, ${transaction.blockNumber ?? null}::bigint, ${transaction.blockHash ?? null}, ${transaction.timestamp ?? null}::timestamptz, ${transaction.confirmations ?? null}, ${provenance.sourceType}, ${provenance.provider}, ${provenance.sourceReference ?? null}, ${provenance.rawReference ?? null}, ${JSON.stringify(provenance.rawData ?? {})}::jsonb, ${provenance.retrievedAt}::timestamptz)
-      on conflict (chain, transaction_hash) do update set confirmations = greatest(coalesce(blockchain_transactions.confirmations, 0), coalesce(excluded.confirmations, 0)), retrieved_at = excluded.retrieved_at, raw_data = coalesce(blockchain_transactions.raw_data, excluded.raw_data)
+    const result = await this.db.execute(sql`insert into blockchain_transactions (case_id, wallet_id, chain, transaction_hash, block_number, block_hash, block_timestamp, confirmations, from_address, to_address, value_numeric, execution_status, source_type, provider, source_reference, raw_reference, raw_data, retrieved_at)
+      values (${input.caseId}::uuid, ${wallet.id}::uuid, ${transaction.chain}, ${transaction.transactionHash}, ${transaction.blockNumber ?? null}::bigint, ${transaction.blockHash ?? null}, ${transaction.timestamp ?? null}::timestamptz, ${transaction.confirmations ?? null}, ${transaction.from ?? null}, ${transaction.to ?? null}, ${transaction.value ?? null}::numeric, ${transaction.executionStatus ?? null}, ${provenance.sourceType}, ${provenance.provider}, ${provenance.sourceReference ?? null}, ${provenance.rawReference ?? null}, ${JSON.stringify(provenance.rawData ?? {})}::jsonb, ${provenance.retrievedAt}::timestamptz)
+      on conflict (chain, transaction_hash) do update set confirmations = greatest(coalesce(blockchain_transactions.confirmations, 0), coalesce(excluded.confirmations, 0)), from_address = coalesce(blockchain_transactions.from_address, excluded.from_address), to_address = coalesce(blockchain_transactions.to_address, excluded.to_address), value_numeric = coalesce(blockchain_transactions.value_numeric, excluded.value_numeric), execution_status = coalesce(excluded.execution_status, blockchain_transactions.execution_status), retrieved_at = excluded.retrieved_at, raw_data = coalesce(blockchain_transactions.raw_data, excluded.raw_data)
       returning id`);
     const transactionId = text((result.rows[0] as Record<string, unknown>).id);
     for (const value of transaction.inputs) await this.db.execute(sql`insert into transaction_inputs (transaction_id, input_index, address, value_numeric, previous_transaction_hash, previous_output_index, script) values (${transactionId}::uuid, ${value.index}, ${value.address ?? null}, ${value.value ?? null}::numeric, ${value.previousTransactionHash ?? null}, ${value.previousOutputIndex ?? null}, ${value.script ?? null}) on conflict (transaction_id, input_index) do nothing`);
     for (const value of transaction.outputs) await this.db.execute(sql`insert into transaction_outputs (transaction_id, output_index, address, value_numeric, script, spending_transaction_hash) values (${transactionId}::uuid, ${value.index}, ${value.address ?? null}, ${value.value}::numeric, ${value.script ?? null}, ${value.spentByTransactionHash ?? null}) on conflict (transaction_id, output_index) do nothing`);
     for (const transfer of tokenTransfers) { const source = transfer.provenance; await this.db.execute(sql`insert into token_transfers (transaction_id, chain, from_address, to_address, asset, amount_numeric, contract_address, source_type, provider, source_reference, raw_reference, raw_data, retrieved_at) values (${transactionId}::uuid, ${transfer.chain}, ${transfer.from}, ${transfer.to}, ${transfer.asset}, ${transfer.amount}::numeric, ${transfer.contractAddress ?? null}, ${source.sourceType}, ${source.provider}, ${source.sourceReference ?? null}, ${source.rawReference ?? null}, ${JSON.stringify(source.rawData ?? {})}::jsonb, ${source.retrievedAt}::timestamptz) on conflict (transaction_id, chain, from_address, to_address, asset, amount_numeric, coalesce(contract_address, '')) do nothing`); }
     for (const interaction of contractInteractions) { const source = interaction.provenance; await this.db.execute(sql`insert into contract_interactions (transaction_id, chain, contract_address, method_selector, input_data, source_type, provider, source_reference, raw_reference, raw_data, retrieved_at) values (${transactionId}::uuid, ${interaction.chain}, ${interaction.contractAddress}, ${interaction.methodSelector ?? null}, ${interaction.input ?? null}, ${source.sourceType}, ${source.provider}, ${source.sourceReference ?? null}, ${source.rawReference ?? null}, ${JSON.stringify(source.rawData ?? {})}::jsonb, ${source.retrievedAt}::timestamptz) on conflict (transaction_id, chain, contract_address, coalesce(method_selector, ''), coalesce(input_data, '')) do nothing`); }
+    await new PostgresGraphRepository(this.db).upsertDerivedRelationships(input.caseId, extractRelationships(input.bundle));
     return { transactionId };
   }
   async findTransaction(chain: string, transactionHash: string): Promise<Record<string, unknown> | null> { const result = await this.db.execute(sql`select * from blockchain_transactions where chain = ${chain} and transaction_hash = ${transactionHash}`); return result.rows[0] as Record<string, unknown> ?? null; }
+}
+
+class PostgresGraphRepository implements GraphRepository {
+  constructor(private readonly db: Executor) {}
+  async upsertDerivedRelationships(caseId: string, relationships: GraphRelationshipInput[]) {
+    for (const relationship of relationships) await this.db.execute(sql`insert into investigation_graph_relationships (case_id, chain, transaction_hash, from_address, to_address, relationship_type, asset, amount_numeric, token_contract, block_number, block_timestamp, execution_status, derivation_source_type, provider, source_reference, raw_reference, retrieved_at, method) values (${caseId}::uuid, ${relationship.chain}, ${relationship.transactionHash}, ${relationship.fromAddress}, ${relationship.toAddress}, ${relationship.relationshipType}, ${relationship.asset}, ${relationship.amount}::numeric, ${relationship.tokenContract}, ${relationship.blockNumber}::bigint, ${relationship.timestamp}::timestamptz, ${relationship.executionStatus}, ${relationship.derivationSourceType}, ${relationship.provider}, ${relationship.sourceReference}, ${relationship.rawReference}, ${relationship.retrievedAt}::timestamptz, ${relationship.method}) on conflict (case_id, chain, transaction_hash, lower(from_address), lower(to_address), relationship_type, asset, amount_numeric, coalesce(token_contract, '')) do update set retrieved_at = excluded.retrieved_at, execution_status = coalesce(excluded.execution_status, investigation_graph_relationships.execution_status)`);
+  }
+  async listByCaseAndChain(caseId: string, chain: string) {
+    const result = await this.db.execute(sql`select * from investigation_graph_relationships where case_id = ${caseId}::uuid and chain = ${chain} order by block_timestamp desc nulls last, transaction_hash, id`);
+    return result.rows.map((row) => graphRelationshipRecord(row as Record<string, unknown>));
+  }
 }
 
 class PostgresUserRepository implements UserRepository {
@@ -140,12 +157,12 @@ export class PostgresRepositories implements TransactionCoordinator {
   constructor(private readonly db: CashnetDatabase) {}
   context(): RepositoryContext {
     const executor = this.db as Executor;
-    return { cases: new PostgresCaseRepository(executor), investigations: new PostgresInvestigationRepository(executor), walletSubjects: new PostgresWalletSubjectRepository(executor), evidence: new PostgresEvidenceRepository(executor), audit: new PostgresAuditRepository(executor), users: new PostgresUserRepository(executor), blockchain: new PostgresBlockchainRepository(executor) };
+    return { cases: new PostgresCaseRepository(executor), investigations: new PostgresInvestigationRepository(executor), walletSubjects: new PostgresWalletSubjectRepository(executor), evidence: new PostgresEvidenceRepository(executor), audit: new PostgresAuditRepository(executor), users: new PostgresUserRepository(executor), blockchain: new PostgresBlockchainRepository(executor), graph: new PostgresGraphRepository(executor) };
   }
   async transaction<T>(work: (repositories: RepositoryContext) => Promise<T>): Promise<T> {
     return this.db.transaction(async (transaction) => {
       const executor = transaction as unknown as Executor;
-      return work({ cases: new PostgresCaseRepository(executor), investigations: new PostgresInvestigationRepository(executor), walletSubjects: new PostgresWalletSubjectRepository(executor), evidence: new PostgresEvidenceRepository(executor), audit: new PostgresAuditRepository(executor), users: new PostgresUserRepository(executor), blockchain: new PostgresBlockchainRepository(executor) });
+      return work({ cases: new PostgresCaseRepository(executor), investigations: new PostgresInvestigationRepository(executor), walletSubjects: new PostgresWalletSubjectRepository(executor), evidence: new PostgresEvidenceRepository(executor), audit: new PostgresAuditRepository(executor), users: new PostgresUserRepository(executor), blockchain: new PostgresBlockchainRepository(executor), graph: new PostgresGraphRepository(executor) });
     });
   }
 }

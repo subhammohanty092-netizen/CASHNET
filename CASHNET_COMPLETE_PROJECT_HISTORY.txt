@@ -125,11 +125,11 @@ Secrets are environment-only and logging redacts common secret paths. Provider a
 
 SECTION 17 — CURRENT LIMITATIONS
 
-Live provider and clean migration verification are pending environment setup. No graph, bounded BFS, tracing, clustering, VASP attribution, Chainabuse, advanced entity intelligence, fraud intelligence, ML/GNN, PS184, production identity provider, frontend v1 migration, Docker configuration, or RLS policy implementation exists. The UI remains the legacy synthetic workflow. Historical address labels, when considered in future, require separate import/provenance review.
+Live provider and clean migration verification are pending environment setup. Phase 4 graph tracing is implemented over stored facts only, but requires a configured PostgreSQL database for operational validation and a controlled backfill for historical Phase 3 rows. Clustering, VASP attribution, Chainabuse, advanced entity intelligence, fraud intelligence, ML/GNN, PS184, production identity provider, frontend v1 migration, Docker configuration, and RLS policy implementation remain out of scope. The UI remains the legacy synthetic workflow.
 
 SECTION 18 — FUTURE PHASES
 
-Phase 4: transaction graph and bounded BFS tracing, dependent on reliable persisted Phase 3 facts and operational validation. Phase 5: reviewed address intelligence, carefully separated clustering inference and VASP candidate assessment, dependent on Phase 4 evidence paths. Phase 6: PS183 fraud/risk intelligence, dependent on governed facts/inferences. Later: BNB/Polygon/Solana adapters, PS184, production identity and institutional adapters. Each phase must preserve providers, repositories, provenance, case isolation, and explicit uncertainty.
+Phase 5: reviewed address intelligence, carefully separated clustering inference and VASP candidate assessment, dependent on Phase 4 evidence paths. Phase 6: PS183 fraud/risk intelligence, dependent on governed facts/inferences. Later: BNB/Polygon/Solana adapters, PS184, production identity and institutional adapters. Each phase must preserve providers, repositories, provenance, case isolation, and explicit uncertainty.
 
 SECTION 19 — HOW TO CONTINUE DEVELOPMENT
 
@@ -143,23 +143,23 @@ SECTION 19 — HOW TO CONTINUE DEVELOPMENT
 
 SECTION 20 — FILE / ARCHITECTURE MAP
 
-`artifacts/api-server/src/config` configuration; `auth` development actor/case authorization; `errors` standardized error middleware; `repositories` ports/Postgres implementations; `routes` legacy and v1 HTTP boundaries; `schemas` Zod normalized models; `services/investigation` synthetic and persistent orchestration; `services/blockchain` provider port/router/adapters/http/normalizers; tests adjacent in API source.
+`artifacts/api-server/src/config` configuration; `auth` development actor/case authorization; `errors` standardized error middleware; `repositories` ports/Postgres implementations; `routes` legacy and v1 HTTP boundaries; `schemas` Zod normalized models; `services/investigation` synthetic and persistent orchestration; `services/blockchain` provider port/router/adapters/http/normalizers; `services/graph` relationship extraction and bounded BFS; tests adjacent in API source.
 `artifacts/cashnet` is the current Vite/React UI. `lib/api-spec` owns OpenAPI. `lib/api-client-react` and `lib/api-zod` are generated artifacts. `lib/db/src/schema` contains Drizzle identity/case/investigation/evidence/audit/blockchain models and `migrate.ts`. `database/migrations` contains ordered additive SQL. `docs` contains current architecture/status/decisions. `.github` contains CI and collaboration templates.
 
 SECTION 21 — FINAL CURRENT STATE
 
 PROJECT = CASHNET
-CURRENT_PHASE = 3
+CURRENT_PHASE = 4
 PHASE_0 = COMPLETE
 PHASE_1 = COMPLETE
 PHASE_2 = COMPLETE
 PHASE_3 = COMPLETE_WITH_ENVIRONMENT_PENDING
-PHASE_4 = NOT_STARTED
+PHASE_4 = COMPLETE_WITH_DATABASE_VALIDATION_PENDING
 SUPPORTED_CHAINS = Ethereum, Bitcoin, TRON
 ETH_PROVIDER = Etherscan V2
 BTC_PROVIDER = Esplora
 TRON_PROVIDER = TronGrid
-GRAPH = NOT_IMPLEMENTED
+GRAPH = BOUNDED_BFS_OVER_STORED_FACTS
 CLUSTERING = NOT_IMPLEMENTED
 VASP_ATTRIBUTION = NOT_IMPLEMENTED
 ML = NOT_IMPLEMENTED

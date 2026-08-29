@@ -49,9 +49,19 @@ export default defineConfig({
       target: "generated",
       schemas: { path: "generated/types", type: "typescript" },
       mode: "split",
+      // Split output can contain a model and a runtime validator with the
+      // same generated name. Avoid an unsafe wildcard barrel at this layer.
+      indexFiles: false,
       clean: true,
       prettier: true,
       override: {
+        operations: {
+          // The split model emitted for this query is intentionally distinct
+          // from its runtime path-parameter validator.
+          traceInvestigationGraph: {
+            operationName: () => ["traceInvestigationGraph", "traceInvestigationGraphZod"],
+          },
+        },
         zod: {
           coerce: {
             query: ['boolean', 'number', 'string'],

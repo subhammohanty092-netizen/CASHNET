@@ -6,6 +6,7 @@ import { CaseService } from "./cases/case-service";
 import { EvidenceService } from "./evidence/evidence-service";
 import { PersistentInvestigationService } from "./investigation/persistent-investigation-service";
 import { BlockchainCollectionService } from "./investigation/blockchain-collection-service";
+import { GraphTracingService } from "./graph/graph-tracing-service";
 import { BlockchainService } from "./blockchain/blockchain-service";
 import { ProviderRouter } from "./blockchain/provider-router";
 import { config } from "../config";
@@ -20,6 +21,7 @@ export function getPersistentContext() {
     cases: new CaseService(context, repositories, authorization),
     investigations: new PersistentInvestigationService(context, repositories, authorization),
     collection: new BlockchainCollectionService(context, repositories, authorization, providers),
+    graphTracing: new GraphTracingService(context, repositories, authorization),
     blockchain: new BlockchainService(providers),
     evidence: new EvidenceService(context, authorization),
     authorization,

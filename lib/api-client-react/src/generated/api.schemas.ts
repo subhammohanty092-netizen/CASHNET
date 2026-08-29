@@ -638,3 +638,158 @@ export interface AuditEvent {
   createdAt: string;
 }
 
+export type GraphEvidenceDerivationSourceType = typeof GraphEvidenceDerivationSourceType[keyof typeof GraphEvidenceDerivationSourceType];
+
+
+export const GraphEvidenceDerivationSourceType = {
+  API: 'API',
+  INFERENCE: 'INFERENCE',
+} as const;
+
+export interface GraphEvidence {
+  transactionHash: string;
+  /** @nullable */
+  provider?: string | null;
+  /** @nullable */
+  sourceReference?: string | null;
+  /** @nullable */
+  rawReference?: string | null;
+  /** @nullable */
+  retrievedAt?: string | null;
+  method: string;
+  derivationSourceType: GraphEvidenceDerivationSourceType;
+}
+
+export type InvestigationGraphNodeNodeType = typeof InvestigationGraphNodeNodeType[keyof typeof InvestigationGraphNodeNodeType];
+
+
+export const InvestigationGraphNodeNodeType = {
+  EOA: 'EOA',
+  ADDRESS: 'ADDRESS',
+  CONTRACT: 'CONTRACT',
+  UNKNOWN: 'UNKNOWN',
+} as const;
+
+export interface InvestigationGraphNode {
+  id: string;
+  chain: string;
+  address: string;
+  nodeType: InvestigationGraphNodeNodeType;
+  /** @nullable */
+  firstSeen?: string | null;
+  /** @nullable */
+  lastSeen?: string | null;
+}
+
+export type InvestigationGraphEdgeRelationshipType = typeof InvestigationGraphEdgeRelationshipType[keyof typeof InvestigationGraphEdgeRelationshipType];
+
+
+export const InvestigationGraphEdgeRelationshipType = {
+  TRANSFER: 'TRANSFER',
+  TOKEN_TRANSFER: 'TOKEN_TRANSFER',
+  INTERNAL_TRANSFER: 'INTERNAL_TRANSFER',
+  CONTRACT_INTERACTION: 'CONTRACT_INTERACTION',
+  UTXO_SPEND: 'UTXO_SPEND',
+} as const;
+
+export interface InvestigationGraphEdge {
+  id: string;
+  chain: string;
+  transactionHash: string;
+  fromAddress: string;
+  toAddress: string;
+  relationshipType: InvestigationGraphEdgeRelationshipType;
+  asset: string;
+  amount: string;
+  /** @nullable */
+  tokenContract?: string | null;
+  /** @nullable */
+  timestamp?: string | null;
+  /** @nullable */
+  blockNumber?: string | null;
+  /** @nullable */
+  status?: string | null;
+  evidence: GraphEvidence;
+}
+
+export type InvestigationGraphPathNodesItem = {
+  chain: string;
+  address: string;
+};
+
+export interface InvestigationGraphPath {
+  /** @minimum 1 */
+  rank: number;
+  nodes: InvestigationGraphPathNodesItem[];
+  edgeIds: string[];
+  /** @minimum 0 */
+  hopCount: number;
+  evidenceComplete: boolean;
+}
+
+export type InvestigationGraphStatus = typeof InvestigationGraphStatus[keyof typeof InvestigationGraphStatus];
+
+
+export const InvestigationGraphStatus = {
+  OK: 'OK',
+  INSUFFICIENT_DATA: 'INSUFFICIENT_DATA',
+} as const;
+
+export type InvestigationGraphMetadata = { [key: string]: unknown };
+
+export type InvestigationGraphLimitsApplied = { [key: string]: unknown };
+
+export interface InvestigationGraph {
+  status: InvestigationGraphStatus;
+  nodes: InvestigationGraphNode[];
+  edges: InvestigationGraphEdge[];
+  paths: InvestigationGraphPath[];
+  metadata: InvestigationGraphMetadata;
+  limitsApplied: InvestigationGraphLimitsApplied;
+  evidenceReferences: GraphEvidence[];
+}
+
+export type TraceInvestigationGraphParams = {
+/**
+ * @minimum 1
+ * @maximum 5
+ */
+depth?: number;
+direction?: TraceInvestigationGraphDirection;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+max_neighbors?: number;
+/**
+ * @minimum 1
+ * @maximum 1000
+ */
+max_nodes?: number;
+/**
+ * @minimum 1
+ * @maximum 2000
+ */
+max_edges?: number;
+/**
+ * @pattern ^\\d+(\\.\\d+)?$
+ */
+min_amount?: string;
+/**
+ * @pattern ^\\d+(\\.\\d+)?$
+ */
+max_amount?: string;
+asset?: string;
+start_time?: string;
+end_time?: string;
+};
+
+export type TraceInvestigationGraphDirection = typeof TraceInvestigationGraphDirection[keyof typeof TraceInvestigationGraphDirection];
+
+
+export const TraceInvestigationGraphDirection = {
+  OUTGOING: 'OUTGOING',
+  INCOMING: 'INCOMING',
+  BOTH: 'BOTH',
+} as const;
+
