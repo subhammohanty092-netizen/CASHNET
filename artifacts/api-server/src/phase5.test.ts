@@ -5,6 +5,8 @@ import type { AddressIntelligenceObservationRecord, AttributionEvidenceInput, Bi
 import { conflictsFor } from "./services/intelligence/address-intelligence-service";
 import { fuseAttributionEvidence } from "./services/intelligence/attribution-evidence-fusion-service";
 import { inferBitcoinCluster } from "./services/intelligence/bitcoin-cluster-inference-service";
+import { evaluateHeldOutCases } from "./services/intelligence/evaluation";
+import { canConfirmCandidate } from "./services/intelligence/vasp-candidate-service";
 
 const observation = (entityName: string, source: string, freshnessStatus: AddressIntelligenceObservationRecord["freshnessStatus"] = "FRESH"): AddressIntelligenceObservationRecord => ({ id: `${source}-${entityName}`, caseId: "case-a", investigationId: "investigation-a", chain: "ETHEREUM", address: "0xdeposit", label: entityName, entityName, entityType: "EXCHANGE", source, sourceReference: source, sourceUrl: null, datasetName: "fixture", datasetVersion: "1", license: "MIT", retrievedAt: "2026-01-01T00:00:00.000Z", lastVerified: "2026-01-01T00:00:00.000Z", freshnessStatus, confidence: 0.8, status: "ACTIVE", rawReference: null, rawData: null, createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z" });
 const evidence = (source: string, contribution: number, polarity: AttributionEvidenceInput["polarity"] = "SUPPORTING"): AttributionEvidenceInput => ({ category: "ADDRESS_INTELLIGENCE", evidenceType: "PUBLIC_SERVICE_LABEL", subjectType: "address", subjectId: "ETHEREUM:0xdeposit", polarity, contribution, source, sourceReference: source, sourceUrl: null, retrievedAt: "2026-01-01T00:00:00.000Z", method: "fixture", methodVersion: "1", rawReference: null, details: {} });
@@ -39,5 +41,13 @@ test("Phase 5 migration, ledger, APIs and source boundary are explicit", async (
   const runner = await readFile(new URL("../../../lib/db/src/migrate.ts", import.meta.url), "utf8");
   const routes = await readFile(new URL("../src/routes/v1/investigations.ts", import.meta.url), "utf8");
   for (const item of ["address_intelligence_observations", "cluster_inferences", "vasp_candidates", "attribution_evidence", "INTELLIGENCE_READ", "VASP_ANALYZE"]) assert.match(migration, new RegExp(item));
-  assert.match(runner, /20260831_phase5_intelligence/); for (const item of ["address-intelligence", "clusters", "vasp-analysis", "vasp-candidates"]) assert.match(routes, new RegExp(item));
+  assert.match(runner, /20260831_phase5_intelligence/); for (const item of ["address-intelligence", "clusters", "vasp-analysis", "vasp-candidates", "review"]) assert.match(routes, new RegExp(item));
+});
+test("Phase 5 confirmation is human-review-only and rejects conflicted or weak candidates", () => {
+  const base = { confidenceLevel: "LIKELY", status: "PENDING_REVIEW", contradictions: [], evidence: [{ polarity: "SUPPORTING", source: "source-a" }, { polarity: "SUPPORTING", source: "source-b" }] };
+  assert.equal(canConfirmCandidate(base), true); assert.equal(canConfirmCandidate({ ...base, contradictions: [{ reason: "conflict" }] }), false); assert.equal(canConfirmCandidate({ ...base, confidenceLevel: "POSSIBLE" }), false);
+});
+test("Phase 5 held-out evaluator reports counts without treating confidence score as probability", () => {
+  const result = evaluateHeldOutCases([{ id: "1", actual: "POSITIVE", predicted: "POSITIVE", expectedCandidateId: "x", rankedCandidateIds: ["x"] }, { id: "2", actual: "NEGATIVE", predicted: "POSITIVE" }, { id: "3", actual: "POSITIVE", predicted: "UNKNOWN" }, { id: "4", actual: "NEGATIVE", predicted: "NEGATIVE" }]);
+  assert.deepEqual({ truePositive: result.truePositive, falsePositive: result.falsePositive, falseNegative: result.falseNegative, trueNegative: result.trueNegative, unknown: result.unknown }, { truePositive: 1, falsePositive: 1, falseNegative: 1, trueNegative: 1, unknown: 1 }); assert.equal(result.precision, 0.5); assert.equal(result.recall, 0.5); assert.equal(result.unknownRate, 0.25); assert.equal(result.top1Accuracy, 1);
 });

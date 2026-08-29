@@ -10,7 +10,7 @@ import type { WalletSubjectRepository } from "./wallet-subject-repository";
 import type { BlockchainRepository, PersistedBlockchainBundle } from "./blockchain-repository";
 import type { GraphRepository } from "./graph-repository";
 import type { IntelligenceRepository } from "./intelligence-repository";
-import type { Actor, AddressIntelligenceObservationInput, AddressIntelligenceObservationRecord, AuditEventRecord, BitcoinTransactionRecord, CaseRecord, ClusterInferenceInput, ClusterInferenceRecord, ClusterMember, EvidenceRecord, GraphRelationshipInput, GraphRelationshipRecord, InvestigationRecord, ServiceAddressAssessmentInput, ServiceAddressAssessmentRecord, VaspCandidateInput, VaspCandidateRecord, WalletSubjectRecord } from "./types";
+import type { Actor, AddressIntelligenceObservationInput, AddressIntelligenceObservationRecord, AttributionReviewInput, AttributionReviewRecord, AuditEventRecord, BitcoinTransactionRecord, CaseRecord, ClusterInferenceInput, ClusterInferenceRecord, ClusterMember, EvidenceRecord, GraphRelationshipInput, GraphRelationshipRecord, InvestigationRecord, ServiceAddressAssessmentInput, ServiceAddressAssessmentRecord, VaspCandidateInput, VaspCandidateRecord, WalletSubjectRecord } from "./types";
 import { extractRelationships } from "../services/graph/relationship-extractor";
 
 type Executor = Pick<CashnetDatabase, "execute">;
@@ -45,6 +45,7 @@ function serviceAssessmentRecord(row: Record<string, unknown>): ServiceAddressAs
 function candidateRecord(row: Record<string, unknown>, evidence: VaspCandidateRecord["evidence"] = []): VaspCandidateRecord {
   return { id: text(row.id), caseId: text(row.case_id), investigationId: text(row.investigation_id), chain: text(row.chain), address: text(row.address), entityName: row.entity_name == null ? null : text(row.entity_name), entityType: row.entity_type as VaspCandidateRecord["entityType"], confidenceLevel: row.confidence_level as VaspCandidateRecord["confidenceLevel"], numericScore: Number(row.numeric_score), status: row.status as VaspCandidateRecord["status"], reason: text(row.reason), contradictions: (row.contradictions as Record<string, unknown>[]) ?? [], method: text(row.method), methodVersion: text(row.method_version), evidence, createdAt: iso(row.created_at)!, updatedAt: iso(row.updated_at)! };
 }
+function reviewRecord(row: Record<string, unknown>): AttributionReviewRecord { return { id: text(row.id), caseId: text(row.case_id), investigationId: text(row.investigation_id), candidateId: text(row.candidate_id), reviewerId: text(row.reviewer_id), decision: row.decision as AttributionReviewRecord["decision"], rationale: row.rationale == null ? null : text(row.rationale), createdAt: iso(row.created_at)! }; }
 
 class PostgresCaseRepository implements CaseRepository {
   constructor(private readonly db: Executor) {}
@@ -207,6 +208,16 @@ class PostgresIntelligenceRepository implements IntelligenceRepository {
     const output: VaspCandidateRecord[] = [];
     for (const row of result.rows) { const value = row as Record<string, unknown>; const evidence = await this.db.execute(sql`select * from attribution_evidence where candidate_id = ${text(value.id)}::uuid order by created_at, id`); output.push(candidateRecord(value, evidence.rows.map((item) => { const v = item as Record<string, unknown>; return { category: v.category as VaspCandidateRecord["evidence"][number]["category"], evidenceType: text(v.evidence_type), subjectType: text(v.subject_type), subjectId: text(v.subject_id), polarity: v.polarity as VaspCandidateRecord["evidence"][number]["polarity"], contribution: Number(v.contribution), source: v.source == null ? null : text(v.source), sourceReference: v.source_reference == null ? null : text(v.source_reference), sourceUrl: v.source_url == null ? null : text(v.source_url), retrievedAt: iso(v.retrieved_at), method: text(v.method), methodVersion: text(v.method_version), rawReference: v.raw_reference == null ? null : text(v.raw_reference), details: (v.details as Record<string, unknown>) ?? {} }; }))); }
     return output;
+  }
+  async findVaspCandidate(caseId: string, investigationId: string, candidateId: string) {
+    const result = await this.db.execute(sql`select * from vasp_candidates where case_id = ${caseId}::uuid and investigation_id = ${investigationId}::uuid and id = ${candidateId}::uuid`); const row = result.rows[0] as Record<string, unknown> | undefined; if (!row) return null;
+    const evidence = await this.db.execute(sql`select * from attribution_evidence where candidate_id = ${candidateId}::uuid order by created_at, id`);
+    return candidateRecord(row, evidence.rows.map((item) => { const v = item as Record<string, unknown>; return { category: v.category as VaspCandidateRecord["evidence"][number]["category"], evidenceType: text(v.evidence_type), subjectType: text(v.subject_type), subjectId: text(v.subject_id), polarity: v.polarity as VaspCandidateRecord["evidence"][number]["polarity"], contribution: Number(v.contribution), source: v.source == null ? null : text(v.source), sourceReference: v.source_reference == null ? null : text(v.source_reference), sourceUrl: v.source_url == null ? null : text(v.source_url), retrievedAt: iso(v.retrieved_at), method: text(v.method), methodVersion: text(v.method_version), rawReference: v.raw_reference == null ? null : text(v.raw_reference), details: (v.details as Record<string, unknown>) ?? {} }; }));
+  }
+  async appendReview(caseId: string, investigationId: string, candidateId: string, reviewerId: string, input: AttributionReviewInput) {
+    const result = await this.db.execute(sql`insert into attribution_reviews (case_id, investigation_id, candidate_id, reviewer_id, decision, rationale) values (${caseId}::uuid, ${investigationId}::uuid, ${candidateId}::uuid, ${reviewerId}::uuid, ${input.decision}, ${input.rationale}) returning *`);
+    if (input.decision === "CONFIRMED") await this.db.execute(sql`update vasp_candidates set confidence_level = 'CONFIRMED', status = 'CONFIRMED_BY_REVIEW', updated_at = now() where id = ${candidateId}::uuid`);
+    return reviewRecord(result.rows[0] as Record<string, unknown>);
   }
 }
 

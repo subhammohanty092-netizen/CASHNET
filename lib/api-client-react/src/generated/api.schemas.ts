@@ -1023,6 +1023,46 @@ export interface VaspAnalysisResult {
   truncated: boolean;
 }
 
+export type AttributionReviewInputDecision = typeof AttributionReviewInputDecision[keyof typeof AttributionReviewInputDecision];
+
+
+export const AttributionReviewInputDecision = {
+  ACCEPTED: 'ACCEPTED',
+  REJECTED: 'REJECTED',
+  CONFIRMED: 'CONFIRMED',
+} as const;
+
+export interface AttributionReviewInput {
+  decision: AttributionReviewInputDecision;
+  /**
+     * @minLength 3
+     * @maxLength 4000
+     * @nullable
+     */
+  rationale?: string | null;
+}
+
+export type AttributionReviewDecision = typeof AttributionReviewDecision[keyof typeof AttributionReviewDecision];
+
+
+export const AttributionReviewDecision = {
+  ACCEPTED: 'ACCEPTED',
+  REJECTED: 'REJECTED',
+  CONFIRMED: 'CONFIRMED',
+} as const;
+
+export interface AttributionReview {
+  id: string;
+  caseId: string;
+  investigationId: string;
+  candidateId: string;
+  reviewerId: string;
+  decision: AttributionReviewDecision;
+  /** @nullable */
+  rationale?: string | null;
+  createdAt: string;
+}
+
 export type TraceInvestigationGraphParams = {
 /**
  * @minimum 1

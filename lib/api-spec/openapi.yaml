@@ -321,6 +321,16 @@ paths:
       tags: [cashnet]
       parameters: [{ name: id, in: path, required: true, schema: { type: string } }, { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }]
       responses: { "200": { description: Persisted candidate records with traceable evidence, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/VaspCandidate" } } } } } }
+  /v1/investigations/{id}/vasp-candidates/{candidateId}/review:
+    post:
+      operationId: reviewInvestigationVaspCandidate
+      tags: [cashnet]
+      summary: Record a human review of a VASP candidate
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: candidateId, in: path, required: true, schema: { type: string } }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/AttributionReviewInput" } } } }
+      responses: { "201": { description: Append-only review record, content: { application/json: { schema: { $ref: "#/components/schemas/AttributionReview" } } } } }
   /v1/wallets/{chain}/{address}:
     get:
       operationId: getLiveWalletProfile
@@ -990,4 +1000,22 @@ components:
         status: { type: string, enum: [OK, INSUFFICIENT_EVIDENCE] }
         candidates: { type: array, items: { $ref: "#/components/schemas/VaspCandidate" } }
         truncated: { type: boolean }
+    AttributionReviewInput:
+      type: object
+      required: [decision]
+      properties:
+        decision: { type: string, enum: [ACCEPTED, REJECTED, CONFIRMED] }
+        rationale: { type: [string, "null"], minLength: 3, maxLength: 4000 }
+    AttributionReview:
+      type: object
+      required: [id, caseId, investigationId, candidateId, reviewerId, decision, createdAt]
+      properties:
+        id: { type: string }
+        caseId: { type: string }
+        investigationId: { type: string }
+        candidateId: { type: string }
+        reviewerId: { type: string }
+        decision: { type: string, enum: [ACCEPTED, REJECTED, CONFIRMED] }
+        rationale: { type: [string, "null"] }
+        createdAt: { type: string, format: date-time }
 

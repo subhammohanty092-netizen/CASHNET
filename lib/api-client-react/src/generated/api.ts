@@ -21,6 +21,8 @@ import type {
 
 import type {
   AddressIntelligenceLookup,
+  AttributionReview,
+  AttributionReviewInput,
   AuditEvent,
   Case,
   CaseDetail,
@@ -2522,6 +2524,87 @@ export function useListInvestigationVaspCandidates<TData = Awaited<ReturnType<ty
 
 
 
+
+export const getReviewInvestigationVaspCandidateUrl = (id: string,
+    candidateId: string,) => {
+
+
+
+
+  return `/api/v1/investigations/${id}/vasp-candidates/${candidateId}/review`
+}
+
+/**
+ * @summary Record a human review of a VASP candidate
+ */
+export const reviewInvestigationVaspCandidate = async (id: string,
+    candidateId: string,
+    attributionReviewInput: AttributionReviewInput, options?: RequestInit): Promise<AttributionReview> => {
+
+  const res = await fetch(getReviewInvestigationVaspCandidateUrl(id,candidateId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(attributionReviewInput)
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: AttributionReview = body ? JSON.parse(body) : {}
+  return data
+}
+
+
+
+
+
+export const getReviewInvestigationVaspCandidateMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewInvestigationVaspCandidate>>, TError,{id: string;candidateId: string;data: AttributionReviewInput}, TContext>, fetch?: RequestInit}
+): UseMutationOptions<Awaited<ReturnType<typeof reviewInvestigationVaspCandidate>>, TError,{id: string;candidateId: string;data: AttributionReviewInput}, TContext> => {
+
+const mutationKey = ['reviewInvestigationVaspCandidate'];
+const {mutation: mutationOptions, fetch: fetchOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, fetch: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reviewInvestigationVaspCandidate>>, {id: string;candidateId: string;data: AttributionReviewInput}> = (props) => {
+          const {id,candidateId,data} = props ?? {};
+
+          return  reviewInvestigationVaspCandidate(id,candidateId,data,fetchOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReviewInvestigationVaspCandidateMutationResult = NonNullable<Awaited<ReturnType<typeof reviewInvestigationVaspCandidate>>>
+    export type ReviewInvestigationVaspCandidateMutationBody = AttributionReviewInput
+    export type ReviewInvestigationVaspCandidateMutationError = unknown
+
+    /**
+ * @summary Record a human review of a VASP candidate
+ */
+export const useReviewInvestigationVaspCandidate = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewInvestigationVaspCandidate>>, TError,{id: string;candidateId: string;data: AttributionReviewInput}, TContext>, fetch?: RequestInit}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reviewInvestigationVaspCandidate>>,
+        TError,
+        {id: string;candidateId: string;data: AttributionReviewInput},
+        TContext
+      > => {
+      return useMutation(getReviewInvestigationVaspCandidateMutationOptions(options));
+    }
 
 export const getGetLiveWalletProfileUrl = (chain: 'BITCOIN' | 'ETHEREUM' | 'TRON',
     address: string,) => {

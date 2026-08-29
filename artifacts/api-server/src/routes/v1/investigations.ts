@@ -8,6 +8,8 @@ const graphQuery = z.object({ depth: z.coerce.number().int().min(1).max(5).optio
 const intelligenceParams = z.object({ id: z.string().uuid(), chain: z.enum(["BITCOIN", "ETHEREUM", "TRON"]), address: z.string().min(3).max(256) }).strict();
 const boundedRun = z.object({ max_transactions: z.number().int().min(1).max(100).optional(), max_addresses: z.number().int().min(1).max(250).optional(), max_candidates: z.number().int().min(1).max(250).optional() }).strict();
 const listQuery = z.object({ limit: z.coerce.number().int().min(1).max(100).optional() }).strict();
+const reviewParams = z.object({ id: z.string().uuid(), candidateId: z.string().uuid() }).strict();
+const reviewInput = z.object({ decision: z.enum(["ACCEPTED", "REJECTED", "CONFIRMED"]), rationale: z.string().min(3).max(4000).nullable().optional() }).strict().superRefine((value, context) => { if ((value.decision === "REJECTED" || value.decision === "CONFIRMED") && !value.rationale) context.addIssue({ code: z.ZodIssueCode.custom, message: "A rationale is required for rejection or confirmation.", path: ["rationale"] }); });
 const router: IRouter = Router();
 const getContext = async () => (await import("../../services/persistent-context")).getPersistentContext();
 
@@ -20,6 +22,7 @@ router.post("/:id/clusters", async (req, res) => { const context = await getCont
 router.get("/:id/clusters", async (req, res) => { const context = await getContext(); const actor = await context.authenticate.authenticate(req); const query = listQuery.parse(req.query); res.json(await context.bitcoinClusters.list(actor, req.params.id, query.limit, String(req.id))); });
 router.post("/:id/vasp-analysis", async (req, res) => { const context = await getContext(); const actor = await context.authenticate.authenticate(req); const body = boundedRun.parse(req.body ?? {}); res.json(await context.vaspCandidates.analyze(actor, req.params.id, body.max_addresses, body.max_candidates, String(req.id))); });
 router.get("/:id/vasp-candidates", async (req, res) => { const context = await getContext(); const actor = await context.authenticate.authenticate(req); const query = listQuery.parse(req.query); res.json(await context.vaspCandidates.list(actor, req.params.id, query.limit, String(req.id))); });
+router.post("/:id/vasp-candidates/:candidateId/review", async (req, res) => { const context = await getContext(); const actor = await context.authenticate.authenticate(req); const params = reviewParams.parse(req.params); const body = reviewInput.parse(req.body); res.status(201).json(await context.vaspCandidates.review(actor, params.id, params.candidateId, { decision: body.decision, rationale: body.rationale ?? null }, String(req.id))); });
 router.patch("/:id", async (req, res) => { const context = await getContext(); const actor = await context.authenticate.authenticate(req); res.json(await context.investigations.transition(actor, req.params.id, update.parse(req.body).status, String(req.id))); });
 router.post("/:id/collect", async (req, res) => { const context = await getContext(); const actor = await context.authenticate.authenticate(req); res.json(await context.collection.collect(actor, req.params.id, String(req.id))); });
 

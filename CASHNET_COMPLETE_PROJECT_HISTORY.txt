@@ -247,3 +247,9 @@ DATABASE=PostgreSQL
 ORM=Drizzle
 PHASE4_COMMIT=51d9cee
 PHASE4_TAG=v0.4.0-phase4
+
+SECTION 30 — PHASE 5 OPERATIONAL HARDENING
+
+Post-implementation hardening adds append-only candidate review through `POST /api/v1/investigations/:id/vasp-candidates/:candidateId/review`, protected by `VASP_REVIEW`, reviewer/rationale capture, confirmation policy checks, and audit event `VASP_CANDIDATE_REVIEWED`. Automatic scoring still cannot confirm a candidate.
+Evaluation support: `scripts/evaluate-phase5.ts` accepts a governed held-out JSON evaluation set and calculates counts, precision, recall, F1, false-positive/negative rates, coverage, UNKNOWN rate, top-1/top-3 and MRR. No operational accuracy percentage exists without independent approved ground truth. `docs/phase5-operational-validation.md`, `phase5-accuracy-evaluation.md`, `phase5-accuracy-report.md`, `phase5-false-positive-analysis.md`, and `industry-comparison.md` record the validation protocol and status.
+Operational quality gate: VALIDATION_INCOMPLETE. `DATABASE_URL`, an authorized provider configuration, a dataset-level approved source manifest, and an independent held-out ground-truth corpus are absent in this environment. The API production bundle passed on 2026-08-29 in the unrestricted local build environment. No live validation or false accuracy claim was fabricated. Phase 6, ML/GNN and PS184 remain untouched.

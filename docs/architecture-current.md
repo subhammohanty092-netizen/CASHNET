@@ -197,6 +197,8 @@ stored Phase 3 facts + Phase 4 graph + approved local label observations
 
 The intelligence layer has no default external dataset and never invokes Chainabuse. It is bounded (100 stored Bitcoin transactions, 250 addresses/candidates at API limits), authorization-gated, audited, provenance-aware, and separate from canonical facts. Candidate confidence is `UNKNOWN`, `POSSIBLE`, `LIKELY`, or human-review-only `CONFIRMED`; it never identifies a customer or person.
 
+Human review is an append-only `attribution_reviews` record. `VASP_REVIEW` is required; confirmation additionally requires an uncontested `LIKELY` candidate with two sourced observations and a rationale. Evaluation is external-data driven through the `evaluate-phase5` metric utility; its output is not interpreted as probability calibration.
+
 ## 13. Security boundary
 
 No private keys, seed phrases, signing, broadcasting, client-side provider secrets, or real-world identity claims are present. Provider access requires explicit authorized data mode and server-side configuration. Pino redacts authorization, cookies, developer-actor headers, and common secret fields. Successful graph/intelligence operations audit bounded execution metadata; unauthorized or inaccessible case access is audited but returned as non-enumerable not-found.

@@ -10,3 +10,5 @@ Endpoints:
 - `GET /api/v1/investigations/:id/vasp-candidates`
 
 Candidates require `VASP_ANALYZE`; reads require `INTELLIGENCE_READ`. `CONFIRMED` is impossible from scoring alone and requires an explicit human-review/evidence policy represented by `attribution_reviews`.
+
+The review endpoint requires `VASP_REVIEW`. Confirmation requires an uncontested `LIKELY` candidate, `PENDING_REVIEW` status, and at least two sourced supporting observations; confirmation/rejection require a rationale and append an immutable review and audit event.

@@ -1369,6 +1369,36 @@ export const ListInvestigationVaspCandidatesResponse = zod.array(ListInvestigati
 
 
 /**
+ * @summary Record a human review of a VASP candidate
+ */
+export const ReviewInvestigationVaspCandidateParams = zod.object({
+  "id": zod.coerce.string(),
+  "candidateId": zod.coerce.string()
+})
+
+export const reviewInvestigationVaspCandidateBodyRationaleMin = 3;
+export const reviewInvestigationVaspCandidateBodyRationaleMax = 4000;
+
+
+
+export const ReviewInvestigationVaspCandidateBody = zod.object({
+  "decision": zod.enum(['ACCEPTED', 'REJECTED', 'CONFIRMED']),
+  "rationale": zod.string().min(reviewInvestigationVaspCandidateBodyRationaleMin).max(reviewInvestigationVaspCandidateBodyRationaleMax).nullish()
+})
+
+export const ReviewInvestigationVaspCandidateResponse = zod.object({
+  "id": zod.string(),
+  "caseId": zod.string(),
+  "investigationId": zod.string(),
+  "candidateId": zod.string(),
+  "reviewerId": zod.string(),
+  "decision": zod.enum(['ACCEPTED', 'REJECTED', 'CONFIRMED']),
+  "rationale": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
  * @summary Read normalized wallet facts through an authorized provider adapter
  */
 export const GetLiveWalletProfileParams = zod.object({

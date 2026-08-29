@@ -14,7 +14,7 @@ The backend now provides versioned Phase 2–5 API boundaries alongside untouche
 
 ## Working verification
 
-`pnpm run typecheck`, `pnpm -r --if-present run test`, `git diff --check`, and `pnpm --filter @workspace/api-spec run codegen` pass. The 25 tests cover Phase 1–4 regression plus intelligence scoring, conflicts, staleness, CoinJoin-like ambiguity, cautious change inference, migration, and API boundaries. The API build is pending an unrestricted shell because this sandbox prevents esbuild from traversing its required parent path.
+`pnpm run typecheck`, `pnpm -r --if-present run test`, `git diff --check`, `pnpm --filter @workspace/api-spec run codegen`, and `pnpm --filter @workspace/api-server run build` pass. The 27 tests cover Phase 1–4 regression plus intelligence scoring, conflicts, staleness, CoinJoin-like ambiguity, cautious change inference, migration/API boundaries, review confirmation policy, and held-out metric calculation.
 
 ## Environment status
 

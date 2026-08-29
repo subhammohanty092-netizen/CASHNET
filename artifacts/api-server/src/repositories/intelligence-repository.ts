@@ -1,4 +1,4 @@
-import type { AddressIntelligenceObservationInput, AddressIntelligenceObservationRecord, ClusterInferenceInput, ClusterInferenceRecord, ServiceAddressAssessmentInput, ServiceAddressAssessmentRecord, VaspCandidateInput, VaspCandidateRecord } from "./types";
+import type { AddressIntelligenceObservationInput, AddressIntelligenceObservationRecord, AttributionReviewInput, AttributionReviewRecord, ClusterInferenceInput, ClusterInferenceRecord, ServiceAddressAssessmentInput, ServiceAddressAssessmentRecord, VaspCandidateInput, VaspCandidateRecord } from "./types";
 
 /** Case-scoped persistence port. Services never issue SQL directly. */
 export interface IntelligenceRepository {
@@ -10,4 +10,6 @@ export interface IntelligenceRepository {
   upsertServiceAssessment(caseId: string, investigationId: string, value: ServiceAddressAssessmentInput): Promise<ServiceAddressAssessmentRecord>;
   upsertVaspCandidate(caseId: string, investigationId: string, value: VaspCandidateInput): Promise<VaspCandidateRecord>;
   listVaspCandidates(caseId: string, investigationId: string, limit: number): Promise<VaspCandidateRecord[]>;
+  findVaspCandidate(caseId: string, investigationId: string, candidateId: string): Promise<VaspCandidateRecord | null>;
+  appendReview(caseId: string, investigationId: string, candidateId: string, reviewerId: string, input: AttributionReviewInput): Promise<AttributionReviewRecord>;
 }
