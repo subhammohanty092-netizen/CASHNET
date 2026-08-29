@@ -5,10 +5,10 @@ SECTION 1 — PROJECT IDENTITY
 
 PROJECT: CASHNET
 INTENDED GITHUB REPOSITORY: https://github.com/subhammohanty092-netizen/CASHNET
-SIH MAPPING: PS26182/PS26183 as the project planning identifiers supplied for this work.
+SIH MAPPING: SIH26182/SIH26183 as the project planning identifiers supplied for this work.
 GOAL: Provide a case-led, evidence-oriented engineering foundation for authorized financial and blockchain investigation. The implemented system keeps a synthetic demo while making authorized provider collection, persistence, provenance, RBAC, case isolation, and auditing explicit.
 INTENDED USERS: authorized investigators, supervisors, analysts, and engineers operating an approved investigative environment.
-CURRENT STATUS: Phase 0, 1, and 2 are complete. Phase 3 implementation is complete, but actual clean-PostgreSQL migration and live-provider smoke tests require an approved configured environment. Phase 4 has not started.
+CURRENT STATUS: Phases 0–4 are implemented. Phase 3/4 clean-PostgreSQL, authorized provider, and remote GitHub confirmation require approved configured environments; no successful live result is claimed without them. Phase 5 is planned only.
 
 SECTION 2 — WHY CASHNET EXISTS
 
@@ -16,7 +16,7 @@ CASHNET began as a synthetic investigator UI/API demonstration for cybercrime-fi
 
 Case → wallet subject → screening/collection → normalized blockchain facts → graph → tracing → entity intelligence → VASP candidate assessment → confidence/risk → report.
 
-Implemented through Phase 3: case records, wallet subjects, authorization, collection routing, external-provider adapters, normalized chain facts, persistence, provenance, audit, and legacy synthetic reporting. Future only: graph/tracing, entity intelligence, VASP attribution, risk/ML, PS184, and production institutional systems. A provider response or address label is never a real-world identity claim.
+Implemented through Phase 4: case records, wallet subjects, authorization, collection routing, external-provider adapters, normalized chain facts, persistence, provenance, audit, bounded graph relationships/tracing, and legacy synthetic reporting. Future only: entity intelligence, VASP attribution, risk/ML, PS184, and production institutional systems. A provider response or address label is never a real-world identity claim.
 
 SECTION 3 — COMPLETE DEVELOPMENT HISTORY
 
@@ -167,3 +167,76 @@ PS184 = NOT_IMPLEMENTED
 DATABASE = PostgreSQL
 ORM = Drizzle
 ROOT_REPOSITORY = CASHNET
+
+SECTION 22 — PHASE 4 FINAL IMPLEMENTATION
+
+Objective: turn existing stored normalized facts into a bounded, case-authorized, evidence-backed transaction graph without calling a provider or making an ownership/identity claim.
+Commit/tag: `51d9cee feat: add bounded transaction graph tracing` / `v0.4.0-phase4`.
+Data model: migration `20260830_phase4_graph_tracing.sql` adds canonical transaction from/to/value/status fields and the additive `investigation_graph_relationships` projection. A relationship is idempotent on case, chain, transaction, addresses, relationship type, asset, amount, and token contract. It carries provenance and an explicit API or INFERENCE derivation type. Canonical facts remain the source of truth.
+Relationship extraction: `services/graph/relationship-extractor.ts` derives EVM/TRON native transfers, token transfers, contract interactions, and Bitcoin input/output projections. Bitcoin rows are `UTXO_SPEND` plus `INFERENCE` / `bitcoin-utxo-input-output-projection`; they do not assert common-input ownership, change address, clustering, or a person/entity relationship.
+Graph/tracing: `services/graph/graph-tracing-service.ts` reads one case/chain relationship set through `GraphRepository`, performs deterministic bounded BFS, attaches evidence, records metrics and audit events, and has no provider import or fetch path. Node identity is chain + lowercase address, preventing cross-chain conflation. API: `GET /api/v1/investigations/:id/graph`.
+Limits: default depth 2, 25 neighbors/node, 250 nodes, 500 edges; hard ceilings depth 5, 100 neighbors, 1,000 nodes, 2,000 edges. Filters: OUTGOING/INCOMING/BOTH direction, start/end time, exact decimal min/max amount, asset. Loop prevention uses visited chain-qualified nodes. Truncation reports explicit reasons.
+Ranking: fewer hops first; then complete provider/raw/retrieval evidence; then lexical path identity. Neighbor ordering is amount descending, timestamp descending, transaction hash, then relationship ID. These are deterministic, explainable rules—not ML.
+Validation: `phase4.test.ts` covers two-hop Ethereum graph, incoming/asset/exact-decimal filters, cyclic graph termination, fan-out truncation, Bitcoin UTXO semantics, and migration content. The five-edge test fixture measured 12.3749 ms in the Node test harness including setup/assertions; this is not a live database throughput claim.
+
+SECTION 23 — ALGORITHMS ACTUALLY IMPLEMENTED
+
+Provider routing: `ProviderRouter` maps an authorized chain to exactly Etherscan V2, Esplora-compatible Bitcoin, or TronGrid. Input is a requested supported chain; output is a typed provider or explicit unsupported error. It prevents silent fallbacks.
+Normalization: `services/blockchain/normalizers.ts` converts provider-native response shapes into validated typed wallet/transaction/input/output/token/interaction facts with provenance. Its limitation is upstream completeness and configured capability.
+Relationship extraction: normalized transaction bundle input; graph relationship records output; deduplicates exact edges. Complexity is O(inputs × outputs) for a Bitcoin transaction and O(transfers) for token facts. Bitcoin projection is analytical and explicitly incomplete/ambiguous by design.
+Bounded BFS: stored case/chain relationships plus a seed address; nodes/edges/paths/evidence/metrics output. Traversal is O(V + E) within configured limits after the indexed relationship read. It cannot discover history that was not collected.
+Exact decimal comparison: decimal strings are compared using integer/fraction `BigInt`, avoiding JavaScript floating-point loss. It accepts non-negative decimal strings only.
+Cycle/fan-out control: visited node IDs stop loops; deterministic candidate ordering and max-neighbor/node/edge caps prevent unbounded exploration while reporting truncation.
+
+SECTION 24 — CURRENT API INVENTORY
+
+Legacy synthetic `/api/*`: health, dashboard, cases, case detail/analyze/complaint, fund-flow, wallets, predictions, interventions, reports. It retains synthetic behavior and does not use v1 development-actor authentication.
+Persistent `/api/v1/*`: health/version; cases list/create/get/update; case audit; investigations create/wallet/get/transition/collect/graph; evidence create/get; provider-backed wallet and transaction reads. V1 routes authenticate a development actor when explicitly enabled outside production, validate Zod inputs, call services, and use repository interfaces for persistence. Graph is GET-only and requires `INVESTIGATION_READ` plus central case access.
+Responses/contracts: `lib/api-spec/openapi.yaml` is authoritative; Orval generates `lib/api-client-react` and `lib/api-zod`. Standardized errors carry safe code/message/request-ID information. Provider lookup routes are not graph dependencies.
+
+SECTION 25 — REFERENCE / TOOL INTEGRATION MATRIX
+
+Etherscan V2, Blockstream Esplora-compatible API, and TronGrid are IMPLEMENTED server-side Phase 3 provider adapters, operational only when authorized configuration exists.
+Open-Source-Blockchain-Forensics (MIT), am-i-exposed (methodology), Evidencly (MIT), bitcoin-address-clustering (MIT), crypto-wallet-address-labels (MIT repository but dataset-level terms still require review), mev-wallet-cluster-analysis (MIT), and OpenAML (Apache-2.0) are REFERENCE ONLY; no source code was copied. ChainForensics is AGPL-3.0 REFERENCE ONLY. No ChainForensics code was copied into CASHNET.
+Chainabuse is NOT USED. It is only a possible future governed evidence source. Address labels, VASP intelligence, clustering, and AML/ML are not integrated merely because reference repositories exist locally.
+
+SECTION 26 — FINAL VALIDATION / ENVIRONMENT STATUS
+
+Completed locally for Phase 4: `pnpm run typecheck`; `pnpm -r --if-present run test` (18 passed, 0 failed); `pnpm --filter @workspace/api-spec run codegen`; `pnpm --filter @workspace/api-server run build`; `git diff --check`.
+Pending: no DATABASE_URL, Etherscan credential, approved Esplora endpoint, TronGrid credential, psql, Docker, or local .env was available. Therefore clean migration, persistent API start, and public-address provider-to-PostgreSQL-to-graph smoke validation are pending and were not fabricated.
+Publication: local HEAD and cached origin/main resolve to `51d9cee`; local Phase 4 tag exists. Live fetch/ls-remote failed only because Windows Git returned `SEC_E_NO_CREDENTIALS`. No force-push/rewrite was attempted; remote branch/tag confirmation remains pending authenticated Git.
+
+SECTION 27 — DEBUGGING HISTORY
+
+Windows/esbuild restricted filesystem resolution initially blocked worker/dependency discovery; allowing the existing local build to read dependency paths made the API production build pass. Orval split Zod output produced a name collision between a route validator and generated type; the generation configuration now avoids an unsafe wildcard index barrel and generation/typecheck pass. PostgreSQL/provider validation and Git remote verification remain environment/credential dependencies, not code failures.
+
+SECTION 28 — PHASE 5 PLAN STATUS
+
+`docs/phase5-plan.md` specifies a future governed pipeline for address intelligence, separately-scored Bitcoin clustering, VASP candidates, evidence fusion, confidence/review state, provenance, and deterministic scoring. It explicitly defers implementation, data imports, Chainabuse calls, VASP conclusion, ML/GNN, and PS184 until a separate authorization and source-governance decision.
+
+SECTION 29 — FINAL MACHINE-READABLE SUMMARY
+
+PROJECT=CASHNET
+CURRENT_PHASE=4
+PHASE_0=COMPLETE
+PHASE_1=COMPLETE
+PHASE_2=COMPLETE
+PHASE_3=COMPLETE
+PHASE_4=COMPLETE
+PHASE_5=NOT_STARTED
+ETHEREUM_PROVIDER=Etherscan_V2
+BITCOIN_PROVIDER=Esplora
+TRON_PROVIDER=TronGrid
+GRAPH=IMPLEMENTED
+BFS=IMPLEMENTED
+UTXO_AWARENESS=IMPLEMENTED
+CLUSTERING=NOT_IMPLEMENTED
+ADDRESS_INTELLIGENCE=NOT_IMPLEMENTED
+VASP_ATTRIBUTION=NOT_IMPLEMENTED
+CHAINABUSE=NOT_IMPLEMENTED
+ML=NOT_IMPLEMENTED
+PS184=NOT_IMPLEMENTED
+DATABASE=PostgreSQL
+ORM=Drizzle
+PHASE4_COMMIT=51d9cee
+PHASE4_TAG=v0.4.0-phase4

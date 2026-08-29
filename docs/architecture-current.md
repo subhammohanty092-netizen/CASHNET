@@ -59,7 +59,8 @@ database/schema.sql
         │
         ├── 20260827_phase1_foundation.sql
         ├── 20260828_phase2_persistence_rbac.sql
-        └── 20260829_phase3_provider_persistence.sql
+        ├── 20260829_phase3_provider_persistence.sql
+        └── 20260830_phase4_graph_tracing.sql
                     │
                     ▼
          cashnet_schema_migrations ledger
@@ -70,6 +71,8 @@ database/schema.sql
   cases/users/roles/case_memberships/investigations/wallet_subjects
                     │
   wallets/transactions/inputs/outputs/transfers/interactions/evidence/audit
+                    │
+  investigation_graph_relationships (derived, idempotent, provenance-backed)
 ```
 
 ## 4. Provider flow
@@ -151,3 +154,37 @@ stored normalized facts → deterministic relationship extractor
 ```
 
 The graph service never calls external providers. It supports direction, time, exact-decimal amount and asset filters, reports limits/truncation, and keeps Bitcoin UTXO projections explicitly inferred.
+
+## 10. Complete authorization and API architecture
+
+```text
+user request
+  → request ID + redacted Pino log
+  → /api legacy synthetic route, OR /api/v1 route
+  → v1 development actor boundary (disabled in production)
+  → permission check → non-enumerating case-membership lookup
+  → investigation/case service → repository interface → PostgreSQL transaction
+  → standardized result/error + append-only audit event
+```
+
+Legacy `/api/*` keeps its synthetic dashboard, cases, fund-flow, wallet, prediction, intervention, and reporting workflow. Persistent `/api/v1/*` provides health/version, cases, audit, investigations/wallet subjects/collection/graph, evidence, and authorized provider read routes. The authoritative request/response contract is `lib/api-spec/openapi.yaml`; Orval regenerates the React client and Zod runtime validators.
+
+## 11. Graph model and safeguards
+
+```text
+canonical normalized fact
+  → relationship extractor
+  → derived relationship (case + chain + tx + addresses + asset + amount)
+  → authorized investigation query
+  → one indexed relationship read
+  → bounded BFS
+  → ranked paths, edges, nodes, evidence and transparent limits
+```
+
+Node identity is `CHAIN:lowercase-address`, preventing accidental cross-chain identity. Node types are address/contract only. EVM/TRON native transfers become `TRANSFER` or `CONTRACT_INTERACTION`; token transfers become `TOKEN_TRANSFER`. Bitcoin input/output pair projections become `UTXO_SPEND` with `INFERENCE` provenance and never assert common ownership or change attribution.
+
+Defaults are depth 2, 25 neighbors/node, 250 nodes, and 500 edges. Hard ceilings are depth 5, 100 neighbors, 1,000 nodes, and 2,000 edges. Filters are applied before traversal; exact decimal strings use `BigInt` comparison. BFS tracks visited chain-qualified nodes, never scans a provider, and reports `INSUFFICIENT_DATA` when stored history is absent. Ranking is deterministic: fewer hops, complete evidence, then lexical path identity; neighbor priority is amount descending, timestamp descending, transaction hash, then relationship ID.
+
+## 12. Security boundary
+
+No private keys, seed phrases, signing, broadcasting, client-side provider secrets, VASP conclusions, labels, or real-world identity claims are present. Provider access requires explicit authorized data mode and server-side configuration. Pino redacts authorization, cookies, developer-actor headers, and common secret fields. Successful graph reads audit bounded execution metadata; unauthorized or inaccessible case access is audited but returned as non-enumerable not-found.
