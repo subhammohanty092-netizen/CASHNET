@@ -2,7 +2,8 @@ export type PermissionCode =
   | "CASE_CREATE" | "CASE_READ" | "CASE_UPDATE" | "CASE_CLOSE" | "CASE_ASSIGN"
   | "INVESTIGATION_CREATE" | "INVESTIGATION_READ" | "INVESTIGATION_EXECUTE"
   | "EVIDENCE_CREATE" | "EVIDENCE_READ" | "EVIDENCE_EXPORT"
-  | "REPORT_READ" | "REPORT_CREATE" | "REPORT_EXPORT" | "AUDIT_READ" | "USER_MANAGE" | "ROLE_MANAGE";
+  | "REPORT_READ" | "REPORT_CREATE" | "REPORT_EXPORT" | "AUDIT_READ" | "USER_MANAGE" | "ROLE_MANAGE"
+  | "INTELLIGENCE_READ" | "INTELLIGENCE_EXECUTE" | "CLUSTER_ANALYZE" | "VASP_ANALYZE" | "VASP_REVIEW" | "EVIDENCE_REVIEW";
 
 export type Actor = { id: string; username: string; roles: string[]; permissions: PermissionCode[] };
 export type CaseStatus = "OPEN" | "IN_PROGRESS" | "ON_HOLD" | "CLOSED" | "ARCHIVED";
@@ -15,3 +16,18 @@ export type AuditEventRecord = { id: string; caseId: string | null; actorId: str
 export type GraphRelationshipType = "TRANSFER" | "TOKEN_TRANSFER" | "INTERNAL_TRANSFER" | "CONTRACT_INTERACTION" | "UTXO_SPEND";
 export type GraphRelationshipRecord = { id: string; caseId: string; chain: string; transactionHash: string; fromAddress: string; toAddress: string; relationshipType: GraphRelationshipType; asset: string; amount: string; tokenContract: string | null; blockNumber: string | null; timestamp: string | null; executionStatus: string | null; derivationSourceType: "API" | "INFERENCE"; provider: string | null; sourceReference: string | null; rawReference: string | null; retrievedAt: string | null; method: string; createdAt: string };
 export type GraphRelationshipInput = Omit<GraphRelationshipRecord, "id" | "caseId" | "createdAt">;
+export type EntityType = "EXCHANGE" | "VASP" | "CUSTODIAL_SERVICE" | "DEX" | "BRIDGE" | "MIXER" | "MINING_POOL" | "DEFI" | "SCAM" | "PHISHING" | "SANCTIONED_ENTITY" | "OTHER" | "UNKNOWN";
+export type IntelligenceStatus = "UNKNOWN" | "ACTIVE" | "STALE" | "CONFLICTING" | "REVIEW_REQUIRED";
+export type FreshnessStatus = "FRESH" | "STALE" | "EXPIRED" | "UNKNOWN";
+export type ConfidenceLevel = "UNKNOWN" | "POSSIBLE" | "LIKELY" | "CONFIRMED";
+export type AddressIntelligenceObservationRecord = { id: string; caseId: string; investigationId: string; chain: string; address: string; label: string | null; entityName: string | null; entityType: EntityType; source: string; sourceReference: string | null; sourceUrl: string | null; datasetName: string | null; datasetVersion: string | null; license: string | null; retrievedAt: string; lastVerified: string | null; freshnessStatus: FreshnessStatus; confidence: number; status: IntelligenceStatus; rawReference: string | null; rawData: Record<string, unknown> | null; createdAt: string; updatedAt: string };
+export type AddressIntelligenceObservationInput = Omit<AddressIntelligenceObservationRecord, "id" | "caseId" | "investigationId" | "createdAt" | "updatedAt">;
+export type ClusterMember = { address: string; membershipType: "COMMON_INPUT" | "POSSIBLE_CHANGE" | "CONSOLIDATION"; evidence: Record<string, unknown>[] };
+export type ClusterInferenceRecord = { id: string; caseId: string; investigationId: string; clusterKey: string; chain: "BITCOIN"; method: string; methodVersion: string; confidenceLevel: Exclude<ConfidenceLevel, "CONFIRMED">; numericScore: number; reviewStatus: "PENDING_REVIEW" | "ACCEPTED" | "REJECTED"; ambiguityReason: string | null; evidence: Record<string, unknown>[]; members: ClusterMember[]; createdAt: string; updatedAt: string };
+export type ClusterInferenceInput = Omit<ClusterInferenceRecord, "id" | "caseId" | "investigationId" | "createdAt" | "updatedAt">;
+export type ServiceAddressAssessmentRecord = { id: string; caseId: string; investigationId: string; chain: string; address: string; classification: "EXCHANGE_ENTITY" | "EXCHANGE_HOT_WALLET" | "EXCHANGE_DEPOSIT_ADDRESS" | "CUSTODIAL_WALLET" | "VASP" | "OTHER_SERVICE" | "UNKNOWN"; confidenceLevel: Exclude<ConfidenceLevel, "CONFIRMED">; numericScore: number; status: "PENDING_REVIEW" | "CONFLICTING_EVIDENCE" | "INSUFFICIENT_EVIDENCE"; signals: Record<string, unknown>[]; createdAt: string; updatedAt: string };
+export type ServiceAddressAssessmentInput = Omit<ServiceAddressAssessmentRecord, "id" | "caseId" | "investigationId" | "createdAt" | "updatedAt">;
+export type AttributionEvidenceInput = { category: "DIRECT_BLOCKCHAIN_FACT" | "GRAPH_EVIDENCE" | "ADDRESS_INTELLIGENCE" | "CLUSTER_INFERENCE" | "ABUSE_INTELLIGENCE" | "SOURCE_AGREEMENT" | "SOURCE_QUALITY"; evidenceType: string; subjectType: string; subjectId: string; polarity: "SUPPORTING" | "NEGATIVE" | "CONTRADICTORY"; contribution: number; source: string | null; sourceReference: string | null; sourceUrl: string | null; retrievedAt: string | null; method: string; methodVersion: string; rawReference: string | null; details: Record<string, unknown> };
+export type VaspCandidateRecord = { id: string; caseId: string; investigationId: string; chain: string; address: string; entityName: string | null; entityType: EntityType; confidenceLevel: ConfidenceLevel; numericScore: number; status: "PENDING_REVIEW" | "CONFLICTING_EVIDENCE" | "INSUFFICIENT_EVIDENCE" | "CONFIRMED_BY_REVIEW"; reason: string; contradictions: Record<string, unknown>[]; method: string; methodVersion: string; evidence: AttributionEvidenceInput[]; createdAt: string; updatedAt: string };
+export type VaspCandidateInput = Omit<VaspCandidateRecord, "id" | "caseId" | "investigationId" | "createdAt" | "updatedAt">;
+export type BitcoinTransactionRecord = { transactionHash: string; inputs: Array<{ address: string | null; value: string | null }>; outputs: Array<{ address: string | null; value: string }>; };

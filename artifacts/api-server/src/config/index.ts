@@ -14,6 +14,11 @@ const EnvironmentSchema = z.object({
   CASHNET_PROVIDER_TIMEOUT_MS: z.string().regex(/^\d+$/).optional(),
   CASHNET_PROVIDER_MAX_RETRIES: z.string().regex(/^\d+$/).optional(),
   CASHNET_DEV_AUTH_ENABLED: z.enum(["true", "false"]).optional(),
+  CASHNET_LABEL_DATASET_PATH: z.string().min(1).optional(),
+  CASHNET_LABEL_DATASET_APPROVED: z.enum(["true", "false"]).optional(),
+  CASHNET_LABEL_DATASET_NAME: z.string().min(1).optional(),
+  CASHNET_LABEL_DATASET_VERSION: z.string().min(1).optional(),
+  CASHNET_LABEL_DATASET_LICENSE: z.string().min(1).optional(),
 });
 
 export type CashnetConfig = {
@@ -29,11 +34,15 @@ export type CashnetConfig = {
     trongrid: { configured: boolean; baseUrl: string };
   };
   providerRequest: { timeoutMs: number; maxRetries: number };
+  intelligence: { approvedDataset?: { path: string; name: string; version: string; license: string } };
 };
 
 export function createConfig(environment: NodeJS.ProcessEnv = process.env): CashnetConfig {
   const parsed = EnvironmentSchema.parse(environment);
   const runtimeEnvironment = parsed.NODE_ENV ?? "development";
+  const approvedDataset = parsed.CASHNET_LABEL_DATASET_APPROVED === "true" && parsed.CASHNET_LABEL_DATASET_PATH && parsed.CASHNET_LABEL_DATASET_NAME && parsed.CASHNET_LABEL_DATASET_VERSION && parsed.CASHNET_LABEL_DATASET_LICENSE
+    ? { path: parsed.CASHNET_LABEL_DATASET_PATH, name: parsed.CASHNET_LABEL_DATASET_NAME, version: parsed.CASHNET_LABEL_DATASET_VERSION, license: parsed.CASHNET_LABEL_DATASET_LICENSE }
+    : undefined;
   return {
     environment: runtimeEnvironment,
     port: parsed.PORT ? Number(parsed.PORT) : undefined,
@@ -47,6 +56,7 @@ export function createConfig(environment: NodeJS.ProcessEnv = process.env): Cash
       trongrid: { configured: Boolean(parsed.TRONGRID_API_KEY), baseUrl: parsed.TRONGRID_BASE_URL ?? "https://api.trongrid.io" },
     },
     providerRequest: { timeoutMs: Number(parsed.CASHNET_PROVIDER_TIMEOUT_MS ?? "10000"), maxRetries: Number(parsed.CASHNET_PROVIDER_MAX_RETRIES ?? "2") },
+    intelligence: { approvedDataset },
   };
 }
 

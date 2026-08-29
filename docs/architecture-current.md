@@ -185,6 +185,18 @@ Node identity is `CHAIN:lowercase-address`, preventing accidental cross-chain id
 
 Defaults are depth 2, 25 neighbors/node, 250 nodes, and 500 edges. Hard ceilings are depth 5, 100 neighbors, 1,000 nodes, and 2,000 edges. Filters are applied before traversal; exact decimal strings use `BigInt` comparison. BFS tracks visited chain-qualified nodes, never scans a provider, and reports `INSUFFICIENT_DATA` when stored history is absent. Ranking is deterministic: fewer hops, complete evidence, then lexical path identity; neighbor priority is amount descending, timestamp descending, transaction hash, then relationship ID.
 
-## 12. Security boundary
+## 12. Phase 5 intelligence flow
 
-No private keys, seed phrases, signing, broadcasting, client-side provider secrets, VASP conclusions, labels, or real-world identity claims are present. Provider access requires explicit authorized data mode and server-side configuration. Pino redacts authorization, cookies, developer-actor headers, and common secret fields. Successful graph reads audit bounded execution metadata; unauthorized or inaccessible case access is audited but returned as non-enumerable not-found.
+```text
+stored Phase 3 facts + Phase 4 graph + approved local label observations
+ → address observation / cautious Bitcoin inference
+ → service-address assessment
+ → deterministic evidence fusion
+ → case-scoped VASP candidate + linked evidence + review state
+```
+
+The intelligence layer has no default external dataset and never invokes Chainabuse. It is bounded (100 stored Bitcoin transactions, 250 addresses/candidates at API limits), authorization-gated, audited, provenance-aware, and separate from canonical facts. Candidate confidence is `UNKNOWN`, `POSSIBLE`, `LIKELY`, or human-review-only `CONFIRMED`; it never identifies a customer or person.
+
+## 13. Security boundary
+
+No private keys, seed phrases, signing, broadcasting, client-side provider secrets, or real-world identity claims are present. Provider access requires explicit authorized data mode and server-side configuration. Pino redacts authorization, cookies, developer-actor headers, and common secret fields. Successful graph/intelligence operations audit bounded execution metadata; unauthorized or inaccessible case access is audited but returned as non-enumerable not-found.

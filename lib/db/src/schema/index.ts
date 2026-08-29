@@ -4,3 +4,4 @@ export * from "./investigations";
 export * from "./evidence";
 export * from "./audit";
 export * from "./blockchain";
+export * from "./intelligence";

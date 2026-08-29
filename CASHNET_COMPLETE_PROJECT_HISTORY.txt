@@ -210,29 +210,36 @@ SECTION 27 — DEBUGGING HISTORY
 
 Windows/esbuild restricted filesystem resolution initially blocked worker/dependency discovery; allowing the existing local build to read dependency paths made the API production build pass. Orval split Zod output produced a name collision between a route validator and generated type; the generation configuration now avoids an unsafe wildcard index barrel and generation/typecheck pass. PostgreSQL/provider validation and Git remote verification remain environment/credential dependencies, not code failures.
 
-SECTION 28 — PHASE 5 PLAN STATUS
+SECTION 28 — PHASE 5 IMPLEMENTATION
 
-`docs/phase5-plan.md` specifies a future governed pipeline for address intelligence, separately-scored Bitcoin clustering, VASP candidates, evidence fusion, confidence/review state, provenance, and deterministic scoring. It explicitly defers implementation, data imports, Chainabuse calls, VASP conclusion, ML/GNN, and PS184 until a separate authorization and source-governance decision.
+Objective: add case-scoped address intelligence, cautious Bitcoin clustering inference, service assessment, deterministic VASP candidate evidence fusion, confidence/review state, provenance, audit, and APIs without treating labels or heuristics as identity proof.
+Data model: migration `20260831_phase5_intelligence.sql` creates `address_intelligence_observations`, `cluster_inferences`, `cluster_members`, `service_address_assessments`, `vasp_candidates`, `attribution_evidence`, `abuse_intelligence_observations`, and `attribution_reviews`. These are additive and case/investigation scoped. Canonical blockchain facts and Phase 4 graph relationships remain unchanged.
+Source governance: `ApprovedDatasetAddressIntelligenceProvider` reads only a local JSON array after explicit authorized mode plus approved dataset path/name/version/licence configuration. Default result is `NOT_CONFIGURED`; no labels are imported by default. Observations retain source, source reference/URL, dataset name/version/licence, retrieved/verified timestamps, freshness, confidence, status, raw reference/data. Conflicting entity names are visible as conflicts.
+Inference: `BitcoinClusterInferenceService` uses method `bitcoin-common-input-and-cautious-change` version `1.0.0` over bounded stored Bitcoin facts. CoinJoin-like equal-value multi-output activity yields `UNKNOWN` with no member assertion. Change output remains `POSSIBLE_CHANGE` and ambiguous. No heuristic can produce confirmed ownership.
+Candidates: `ServiceAddressAssessmentService` distinguishes service categories without treating an exchange label as a deposit-address conclusion. `VaspCandidateService` persists a deterministic, explainable candidate and backward-linked evidence. Scoring method `deterministic-attribution-evidence-fusion` version `1.0.0`: fresh label 45, graph proximity up to 20, independent sources 15, cautious cluster 5; stale −15, conflicting −35. `LIKELY` requires score >=70 and two independent sources. `CONFIRMED` is unavailable to automation and requires explicit human review/evidence policy.
+APIs: `GET /api/v1/investigations/:id/address-intelligence/:chain/:address`; `POST/GET /api/v1/investigations/:id/clusters`; `POST /api/v1/investigations/:id/vasp-analysis`; `GET /api/v1/investigations/:id/vasp-candidates`. Permissions are `INTELLIGENCE_READ`, `INTELLIGENCE_EXECUTE`, `CLUSTER_ANALYZE`, `VASP_ANALYZE`, `VASP_REVIEW`, `EVIDENCE_REVIEW`; all use the existing non-enumerating case gate and append audit events.
+References: `crypto-wallet-address-labels`, `bitcoin-address-clustering`, `mev-wallet-cluster-analysis`, `am-i-exposed`, Open-Source-Blockchain-Forensics and Evidencly were inspected as methodology/source candidates. No source code or dataset was copied. ChainForensics is AGPL-3.0 REFERENCE ONLY. OpenAML is later reference only. Chainabuse has an optional interface only and is not integrated.
+Validation: deterministic Phase 5 fixtures cover exchange-path scoring, no intelligence, conflicts, stale/contradictory evidence, normal common-input inference, CoinJoin-like ambiguity, ambiguous change, migration/ledger/API boundary. `pnpm run typecheck`, all 25 tests, and OpenAPI generation pass. The Phase 5 API bundle command is blocked in this sandbox because esbuild cannot traverse a parent directory; this is not represented as a successful build. No live intelligence result, database migration, external dataset import, or Chainabuse request was performed without approved environment/source configuration.
 
 SECTION 29 — FINAL MACHINE-READABLE SUMMARY
 
 PROJECT=CASHNET
-CURRENT_PHASE=4
+CURRENT_PHASE=5
 PHASE_0=COMPLETE
 PHASE_1=COMPLETE
 PHASE_2=COMPLETE
 PHASE_3=COMPLETE
 PHASE_4=COMPLETE
-PHASE_5=NOT_STARTED
+PHASE_5=IMPLEMENTED_PENDING_ENVIRONMENT_VALIDATION
 ETHEREUM_PROVIDER=Etherscan_V2
 BITCOIN_PROVIDER=Esplora
 TRON_PROVIDER=TronGrid
 GRAPH=IMPLEMENTED
 BFS=IMPLEMENTED
 UTXO_AWARENESS=IMPLEMENTED
-CLUSTERING=NOT_IMPLEMENTED
-ADDRESS_INTELLIGENCE=NOT_IMPLEMENTED
-VASP_ATTRIBUTION=NOT_IMPLEMENTED
+CLUSTERING=IMPLEMENTED_AS_REVIEW_REQUIRED_INFERENCE
+ADDRESS_INTELLIGENCE=IMPLEMENTED_APPROVED_LOCAL_DATASET_REQUIRED
+VASP_ATTRIBUTION=IMPLEMENTED_AS_ENTITY_CANDIDATE_ONLY
 CHAINABUSE=NOT_IMPLEMENTED
 ML=NOT_IMPLEMENTED
 PS184=NOT_IMPLEMENTED

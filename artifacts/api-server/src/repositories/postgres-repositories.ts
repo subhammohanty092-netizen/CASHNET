@@ -9,7 +9,8 @@ import type { UserRepository } from "./user-repository";
 import type { WalletSubjectRepository } from "./wallet-subject-repository";
 import type { BlockchainRepository, PersistedBlockchainBundle } from "./blockchain-repository";
 import type { GraphRepository } from "./graph-repository";
-import type { Actor, AuditEventRecord, CaseRecord, EvidenceRecord, GraphRelationshipInput, GraphRelationshipRecord, InvestigationRecord, WalletSubjectRecord } from "./types";
+import type { IntelligenceRepository } from "./intelligence-repository";
+import type { Actor, AddressIntelligenceObservationInput, AddressIntelligenceObservationRecord, AuditEventRecord, BitcoinTransactionRecord, CaseRecord, ClusterInferenceInput, ClusterInferenceRecord, ClusterMember, EvidenceRecord, GraphRelationshipInput, GraphRelationshipRecord, InvestigationRecord, ServiceAddressAssessmentInput, ServiceAddressAssessmentRecord, VaspCandidateInput, VaspCandidateRecord, WalletSubjectRecord } from "./types";
 import { extractRelationships } from "../services/graph/relationship-extractor";
 
 type Executor = Pick<CashnetDatabase, "execute">;
@@ -31,6 +32,18 @@ function auditRecord(row: Record<string, unknown>): AuditEventRecord {
 }
 function graphRelationshipRecord(row: Record<string, unknown>): GraphRelationshipRecord {
   return { id: text(row.id), caseId: text(row.case_id), chain: text(row.chain), transactionHash: text(row.transaction_hash), fromAddress: text(row.from_address), toAddress: text(row.to_address), relationshipType: row.relationship_type as GraphRelationshipRecord["relationshipType"], asset: text(row.asset), amount: text(row.amount_numeric), tokenContract: row.token_contract == null ? null : text(row.token_contract), blockNumber: row.block_number == null ? null : text(row.block_number), timestamp: iso(row.block_timestamp), executionStatus: row.execution_status == null ? null : text(row.execution_status), derivationSourceType: row.derivation_source_type as GraphRelationshipRecord["derivationSourceType"], provider: row.provider == null ? null : text(row.provider), sourceReference: row.source_reference == null ? null : text(row.source_reference), rawReference: row.raw_reference == null ? null : text(row.raw_reference), retrievedAt: iso(row.retrieved_at), method: text(row.method), createdAt: iso(row.created_at)! };
+}
+function addressObservationRecord(row: Record<string, unknown>): AddressIntelligenceObservationRecord {
+  return { id: text(row.id), caseId: text(row.case_id), investigationId: text(row.investigation_id), chain: text(row.chain), address: text(row.address), label: row.label == null ? null : text(row.label), entityName: row.entity_name == null ? null : text(row.entity_name), entityType: row.entity_type as AddressIntelligenceObservationRecord["entityType"], source: text(row.source), sourceReference: row.source_reference == null ? null : text(row.source_reference), sourceUrl: row.source_url == null ? null : text(row.source_url), datasetName: row.dataset_name == null ? null : text(row.dataset_name), datasetVersion: row.dataset_version == null ? null : text(row.dataset_version), license: row.license == null ? null : text(row.license), retrievedAt: iso(row.retrieved_at)!, lastVerified: iso(row.last_verified), freshnessStatus: row.freshness_status as AddressIntelligenceObservationRecord["freshnessStatus"], confidence: Number(row.confidence), status: row.status as AddressIntelligenceObservationRecord["status"], rawReference: row.raw_reference == null ? null : text(row.raw_reference), rawData: row.raw_data as Record<string, unknown> | null, createdAt: iso(row.created_at)!, updatedAt: iso(row.updated_at)! };
+}
+function clusterRecord(row: Record<string, unknown>, members: ClusterMember[] = []): ClusterInferenceRecord {
+  return { id: text(row.id), caseId: text(row.case_id), investigationId: text(row.investigation_id), clusterKey: text(row.cluster_key), chain: "BITCOIN", method: text(row.method), methodVersion: text(row.method_version), confidenceLevel: row.confidence_level as ClusterInferenceRecord["confidenceLevel"], numericScore: Number(row.numeric_score), reviewStatus: row.review_status as ClusterInferenceRecord["reviewStatus"], ambiguityReason: row.ambiguity_reason == null ? null : text(row.ambiguity_reason), evidence: (row.evidence as Record<string, unknown>[]) ?? [], members, createdAt: iso(row.created_at)!, updatedAt: iso(row.updated_at)! };
+}
+function serviceAssessmentRecord(row: Record<string, unknown>): ServiceAddressAssessmentRecord {
+  return { id: text(row.id), caseId: text(row.case_id), investigationId: text(row.investigation_id), chain: text(row.chain), address: text(row.address), classification: row.classification as ServiceAddressAssessmentRecord["classification"], confidenceLevel: row.confidence_level as ServiceAddressAssessmentRecord["confidenceLevel"], numericScore: Number(row.numeric_score), status: row.status as ServiceAddressAssessmentRecord["status"], signals: (row.signals as Record<string, unknown>[]) ?? [], createdAt: iso(row.created_at)!, updatedAt: iso(row.updated_at)! };
+}
+function candidateRecord(row: Record<string, unknown>, evidence: VaspCandidateRecord["evidence"] = []): VaspCandidateRecord {
+  return { id: text(row.id), caseId: text(row.case_id), investigationId: text(row.investigation_id), chain: text(row.chain), address: text(row.address), entityName: row.entity_name == null ? null : text(row.entity_name), entityType: row.entity_type as VaspCandidateRecord["entityType"], confidenceLevel: row.confidence_level as VaspCandidateRecord["confidenceLevel"], numericScore: Number(row.numeric_score), status: row.status as VaspCandidateRecord["status"], reason: text(row.reason), contradictions: (row.contradictions as Record<string, unknown>[]) ?? [], method: text(row.method), methodVersion: text(row.method_version), evidence, createdAt: iso(row.created_at)!, updatedAt: iso(row.updated_at)! };
 }
 
 class PostgresCaseRepository implements CaseRepository {
@@ -130,6 +143,10 @@ class PostgresBlockchainRepository implements BlockchainRepository {
     return { transactionId };
   }
   async findTransaction(chain: string, transactionHash: string): Promise<Record<string, unknown> | null> { const result = await this.db.execute(sql`select * from blockchain_transactions where chain = ${chain} and transaction_hash = ${transactionHash}`); return result.rows[0] as Record<string, unknown> ?? null; }
+  async listBitcoinTransactions(caseId: string, limit: number): Promise<BitcoinTransactionRecord[]> {
+    const result = await this.db.execute(sql`select t.transaction_hash, coalesce(jsonb_agg(distinct jsonb_build_object('address', i.address, 'value', i.value_numeric::text)) filter (where i.id is not null), '[]'::jsonb) as inputs, coalesce(jsonb_agg(distinct jsonb_build_object('address', o.address, 'value', o.value_numeric::text)) filter (where o.id is not null), '[]'::jsonb) as outputs from blockchain_transactions t left join transaction_inputs i on i.transaction_id = t.id left join transaction_outputs o on o.transaction_id = t.id where t.case_id = ${caseId}::uuid and t.chain = 'BITCOIN' group by t.id, t.transaction_hash order by t.transaction_hash limit ${limit}`);
+    return result.rows.map((row) => { const value = row as Record<string, unknown>; return { transactionHash: text(value.transaction_hash), inputs: (value.inputs as BitcoinTransactionRecord["inputs"]) ?? [], outputs: (value.outputs as BitcoinTransactionRecord["outputs"]) ?? [] }; });
+  }
 }
 
 class PostgresGraphRepository implements GraphRepository {
@@ -140,6 +157,56 @@ class PostgresGraphRepository implements GraphRepository {
   async listByCaseAndChain(caseId: string, chain: string) {
     const result = await this.db.execute(sql`select * from investigation_graph_relationships where case_id = ${caseId}::uuid and chain = ${chain} order by block_timestamp desc nulls last, transaction_hash, id`);
     return result.rows.map((row) => graphRelationshipRecord(row as Record<string, unknown>));
+  }
+}
+
+class PostgresIntelligenceRepository implements IntelligenceRepository {
+  constructor(private readonly db: Executor) {}
+  async listAddressObservations(caseId: string, investigationId: string, chain: string, address: string) {
+    const result = await this.db.execute(sql`select * from address_intelligence_observations where case_id = ${caseId}::uuid and investigation_id = ${investigationId}::uuid and chain = ${chain} and lower(address) = lower(${address}) order by retrieved_at desc, id`);
+    return result.rows.map((row) => addressObservationRecord(row as Record<string, unknown>));
+  }
+  async listObservationsForInvestigation(caseId: string, investigationId: string, chain: string, limit: number) {
+    const result = await this.db.execute(sql`select * from address_intelligence_observations where case_id = ${caseId}::uuid and investigation_id = ${investigationId}::uuid and chain = ${chain} order by retrieved_at desc, id limit ${limit}`);
+    return result.rows.map((row) => addressObservationRecord(row as Record<string, unknown>));
+  }
+  async upsertAddressObservations(caseId: string, investigationId: string, values: AddressIntelligenceObservationInput[]) {
+    const output: AddressIntelligenceObservationRecord[] = [];
+    for (const value of values) {
+      const result = await this.db.execute(sql`insert into address_intelligence_observations (case_id, investigation_id, chain, address, label, entity_name, entity_type, source, source_reference, source_url, dataset_name, dataset_version, license, retrieved_at, last_verified, freshness_status, confidence, status, raw_reference, raw_data) values (${caseId}::uuid, ${investigationId}::uuid, ${value.chain}, ${value.address}, ${value.label}, ${value.entityName}, ${value.entityType}, ${value.source}, ${value.sourceReference}, ${value.sourceUrl}, ${value.datasetName}, ${value.datasetVersion}, ${value.license}, ${value.retrievedAt}::timestamptz, ${value.lastVerified}::timestamptz, ${value.freshnessStatus}, ${value.confidence}, ${value.status}, ${value.rawReference}, ${JSON.stringify(value.rawData ?? {})}::jsonb) on conflict (case_id, investigation_id, chain, lower(address), source, coalesce(source_reference, ''), coalesce(dataset_version, ''), coalesce(label, ''), coalesce(entity_name, '')) do update set retrieved_at = excluded.retrieved_at, last_verified = excluded.last_verified, freshness_status = excluded.freshness_status, confidence = excluded.confidence, status = excluded.status, raw_data = excluded.raw_data, updated_at = now() returning *`);
+      output.push(addressObservationRecord(result.rows[0] as Record<string, unknown>));
+    }
+    return output;
+  }
+  async upsertCluster(caseId: string, investigationId: string, value: ClusterInferenceInput) {
+    const result = await this.db.execute(sql`insert into cluster_inferences (case_id, investigation_id, cluster_key, chain, method, method_version, confidence_level, numeric_score, review_status, ambiguity_reason, evidence) values (${caseId}::uuid, ${investigationId}::uuid, ${value.clusterKey}, 'BITCOIN', ${value.method}, ${value.methodVersion}, ${value.confidenceLevel}, ${value.numericScore}, ${value.reviewStatus}, ${value.ambiguityReason}, ${JSON.stringify(value.evidence)}::jsonb) on conflict (case_id, investigation_id, cluster_key, method, method_version) do update set confidence_level = excluded.confidence_level, numeric_score = excluded.numeric_score, review_status = excluded.review_status, ambiguity_reason = excluded.ambiguity_reason, evidence = excluded.evidence, updated_at = now() returning *`);
+    const row = result.rows[0] as Record<string, unknown>; const id = text(row.id);
+    await this.db.execute(sql`delete from cluster_members where cluster_id = ${id}::uuid`);
+    for (const member of value.members) await this.db.execute(sql`insert into cluster_members (cluster_id, chain, address, membership_type, evidence) values (${id}::uuid, 'BITCOIN', ${member.address}, ${member.membershipType}, ${JSON.stringify(member.evidence)}::jsonb) on conflict do nothing`);
+    return clusterRecord(row, value.members);
+  }
+  async listClusters(caseId: string, investigationId: string, limit: number) {
+    const result = await this.db.execute(sql`select * from cluster_inferences where case_id = ${caseId}::uuid and investigation_id = ${investigationId}::uuid order by created_at desc, id limit ${limit}`);
+    const output: ClusterInferenceRecord[] = [];
+    for (const row of result.rows) { const value = row as Record<string, unknown>; const members = await this.db.execute(sql`select address, membership_type, evidence from cluster_members where cluster_id = ${text(value.id)}::uuid order by address, membership_type`); output.push(clusterRecord(value, members.rows.map((member) => { const v = member as Record<string, unknown>; return { address: text(v.address), membershipType: v.membership_type as ClusterMember["membershipType"], evidence: (v.evidence as Record<string, unknown>[]) ?? [] }; }))); }
+    return output;
+  }
+  async upsertServiceAssessment(caseId: string, investigationId: string, value: ServiceAddressAssessmentInput) {
+    const result = await this.db.execute(sql`insert into service_address_assessments (case_id, investigation_id, chain, address, classification, confidence_level, numeric_score, status, signals) values (${caseId}::uuid, ${investigationId}::uuid, ${value.chain}, ${value.address}, ${value.classification}, ${value.confidenceLevel}, ${value.numericScore}, ${value.status}, ${JSON.stringify(value.signals)}::jsonb) on conflict (case_id, investigation_id, chain, lower(address)) do update set classification = excluded.classification, confidence_level = excluded.confidence_level, numeric_score = excluded.numeric_score, status = excluded.status, signals = excluded.signals, updated_at = now() returning *`);
+    return serviceAssessmentRecord(result.rows[0] as Record<string, unknown>);
+  }
+  async upsertVaspCandidate(caseId: string, investigationId: string, value: VaspCandidateInput) {
+    const result = await this.db.execute(sql`insert into vasp_candidates (case_id, investigation_id, chain, address, entity_name, entity_type, confidence_level, numeric_score, status, reason, contradictions, method, method_version) values (${caseId}::uuid, ${investigationId}::uuid, ${value.chain}, ${value.address}, ${value.entityName}, ${value.entityType}, ${value.confidenceLevel}, ${value.numericScore}, ${value.status}, ${value.reason}, ${JSON.stringify(value.contradictions)}::jsonb, ${value.method}, ${value.methodVersion}) on conflict (case_id, investigation_id, chain, lower(address), coalesce(entity_name, ''), method, method_version) do update set confidence_level = excluded.confidence_level, numeric_score = excluded.numeric_score, status = excluded.status, reason = excluded.reason, contradictions = excluded.contradictions, updated_at = now() returning *`);
+    const row = result.rows[0] as Record<string, unknown>; const id = text(row.id);
+    await this.db.execute(sql`delete from attribution_evidence where candidate_id = ${id}::uuid`);
+    for (const item of value.evidence) await this.db.execute(sql`insert into attribution_evidence (case_id, investigation_id, candidate_id, category, evidence_type, subject_type, subject_id, polarity, contribution, source, source_reference, source_url, retrieved_at, method, method_version, raw_reference, details) values (${caseId}::uuid, ${investigationId}::uuid, ${id}::uuid, ${item.category}, ${item.evidenceType}, ${item.subjectType}, ${item.subjectId}, ${item.polarity}, ${item.contribution}, ${item.source}, ${item.sourceReference}, ${item.sourceUrl}, ${item.retrievedAt}::timestamptz, ${item.method}, ${item.methodVersion}, ${item.rawReference}, ${JSON.stringify(item.details)}::jsonb)`);
+    return candidateRecord(row, value.evidence);
+  }
+  async listVaspCandidates(caseId: string, investigationId: string, limit: number) {
+    const result = await this.db.execute(sql`select * from vasp_candidates where case_id = ${caseId}::uuid and investigation_id = ${investigationId}::uuid order by numeric_score desc, created_at, id limit ${limit}`);
+    const output: VaspCandidateRecord[] = [];
+    for (const row of result.rows) { const value = row as Record<string, unknown>; const evidence = await this.db.execute(sql`select * from attribution_evidence where candidate_id = ${text(value.id)}::uuid order by created_at, id`); output.push(candidateRecord(value, evidence.rows.map((item) => { const v = item as Record<string, unknown>; return { category: v.category as VaspCandidateRecord["evidence"][number]["category"], evidenceType: text(v.evidence_type), subjectType: text(v.subject_type), subjectId: text(v.subject_id), polarity: v.polarity as VaspCandidateRecord["evidence"][number]["polarity"], contribution: Number(v.contribution), source: v.source == null ? null : text(v.source), sourceReference: v.source_reference == null ? null : text(v.source_reference), sourceUrl: v.source_url == null ? null : text(v.source_url), retrievedAt: iso(v.retrieved_at), method: text(v.method), methodVersion: text(v.method_version), rawReference: v.raw_reference == null ? null : text(v.raw_reference), details: (v.details as Record<string, unknown>) ?? {} }; }))); }
+    return output;
   }
 }
 
@@ -157,12 +224,12 @@ export class PostgresRepositories implements TransactionCoordinator {
   constructor(private readonly db: CashnetDatabase) {}
   context(): RepositoryContext {
     const executor = this.db as Executor;
-    return { cases: new PostgresCaseRepository(executor), investigations: new PostgresInvestigationRepository(executor), walletSubjects: new PostgresWalletSubjectRepository(executor), evidence: new PostgresEvidenceRepository(executor), audit: new PostgresAuditRepository(executor), users: new PostgresUserRepository(executor), blockchain: new PostgresBlockchainRepository(executor), graph: new PostgresGraphRepository(executor) };
+    return { cases: new PostgresCaseRepository(executor), investigations: new PostgresInvestigationRepository(executor), walletSubjects: new PostgresWalletSubjectRepository(executor), evidence: new PostgresEvidenceRepository(executor), audit: new PostgresAuditRepository(executor), users: new PostgresUserRepository(executor), blockchain: new PostgresBlockchainRepository(executor), graph: new PostgresGraphRepository(executor), intelligence: new PostgresIntelligenceRepository(executor) };
   }
   async transaction<T>(work: (repositories: RepositoryContext) => Promise<T>): Promise<T> {
     return this.db.transaction(async (transaction) => {
       const executor = transaction as unknown as Executor;
-      return work({ cases: new PostgresCaseRepository(executor), investigations: new PostgresInvestigationRepository(executor), walletSubjects: new PostgresWalletSubjectRepository(executor), evidence: new PostgresEvidenceRepository(executor), audit: new PostgresAuditRepository(executor), users: new PostgresUserRepository(executor), blockchain: new PostgresBlockchainRepository(executor), graph: new PostgresGraphRepository(executor) });
+      return work({ cases: new PostgresCaseRepository(executor), investigations: new PostgresInvestigationRepository(executor), walletSubjects: new PostgresWalletSubjectRepository(executor), evidence: new PostgresEvidenceRepository(executor), audit: new PostgresAuditRepository(executor), users: new PostgresUserRepository(executor), blockchain: new PostgresBlockchainRepository(executor), graph: new PostgresGraphRepository(executor), intelligence: new PostgresIntelligenceRepository(executor) });
     });
   }
 }

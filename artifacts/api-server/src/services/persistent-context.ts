@@ -10,6 +10,10 @@ import { GraphTracingService } from "./graph/graph-tracing-service";
 import { BlockchainService } from "./blockchain/blockchain-service";
 import { ProviderRouter } from "./blockchain/provider-router";
 import { config } from "../config";
+import { ApprovedDatasetAddressIntelligenceProvider } from "./intelligence/approved-dataset-provider";
+import { AddressIntelligenceService } from "./intelligence/address-intelligence-service";
+import { BitcoinClusterInferenceService } from "./intelligence/bitcoin-cluster-inference-service";
+import { VaspCandidateService } from "./intelligence/vasp-candidate-service";
 
 export function getPersistentContext() {
   const repositories = new PostgresRepositories(getDatabase().db);
@@ -24,6 +28,9 @@ export function getPersistentContext() {
     graphTracing: new GraphTracingService(context, repositories, authorization),
     blockchain: new BlockchainService(providers),
     evidence: new EvidenceService(context, authorization),
+    addressIntelligence: new AddressIntelligenceService(context, repositories, authorization, new ApprovedDatasetAddressIntelligenceProvider(config)),
+    bitcoinClusters: new BitcoinClusterInferenceService(context, repositories, authorization),
+    vaspCandidates: new VaspCandidateService(context, repositories, authorization),
     authorization,
     audit: context.audit,
   };

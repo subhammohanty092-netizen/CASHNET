@@ -11,6 +11,7 @@ const migrations = [
   ["20260828_phase2_persistence_rbac", path.join(projectRoot, "database", "migrations", "20260828_phase2_persistence_rbac.sql")],
   ["20260829_phase3_provider_persistence", path.join(projectRoot, "database", "migrations", "20260829_phase3_provider_persistence.sql")],
   ["20260830_phase4_graph_tracing", path.join(projectRoot, "database", "migrations", "20260830_phase4_graph_tracing.sql")],
+  ["20260831_phase5_intelligence", path.join(projectRoot, "database", "migrations", "20260831_phase5_intelligence.sql")],
 ] as const;
 
 if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is required to run migrations.");

@@ -1144,6 +1144,231 @@ export const TraceInvestigationGraphZodResponse = zod.object({
 
 
 /**
+ * @summary Look up approved, case-scoped address intelligence observations
+ */
+export const LookupInvestigationAddressIntelligenceParams = zod.object({
+  "id": zod.coerce.string(),
+  "chain": zod.enum(['BITCOIN', 'ETHEREUM', 'TRON']),
+  "address": zod.coerce.string()
+})
+
+export const lookupInvestigationAddressIntelligenceResponseObservationsItemConfidenceMin = 0;
+export const lookupInvestigationAddressIntelligenceResponseObservationsItemConfidenceMax = 1;
+
+
+
+export const LookupInvestigationAddressIntelligenceResponse = zod.object({
+  "status": zod.enum(['SUCCESS', 'NOT_CONFIGURED', 'UNAVAILABLE']),
+  "observations": zod.array(zod.object({
+  "id": zod.string(),
+  "chain": zod.string(),
+  "address": zod.string(),
+  "label": zod.string().nullish(),
+  "entityName": zod.string().nullish(),
+  "entityType": zod.enum(['EXCHANGE', 'VASP', 'CUSTODIAL_SERVICE', 'DEX', 'BRIDGE', 'MIXER', 'MINING_POOL', 'DEFI', 'SCAM', 'PHISHING', 'SANCTIONED_ENTITY', 'OTHER', 'UNKNOWN']),
+  "source": zod.string(),
+  "sourceReference": zod.string().nullish(),
+  "sourceUrl": zod.string().nullish(),
+  "datasetName": zod.string().nullish(),
+  "datasetVersion": zod.string().nullish(),
+  "license": zod.string().nullish(),
+  "retrievedAt": zod.coerce.date(),
+  "freshnessStatus": zod.enum(['FRESH', 'STALE', 'EXPIRED', 'UNKNOWN']),
+  "confidence": zod.number().min(lookupInvestigationAddressIntelligenceResponseObservationsItemConfidenceMin).max(lookupInvestigationAddressIntelligenceResponseObservationsItemConfidenceMax),
+  "status": zod.enum(['UNKNOWN', 'ACTIVE', 'STALE', 'CONFLICTING', 'REVIEW_REQUIRED'])
+})),
+  "conflicts": zod.array(zod.record(zod.string(), zod.unknown()))
+})
+
+
+/**
+ * @summary Run bounded, explainable Bitcoin cluster inference over stored facts
+ */
+export const AnalyzeInvestigationBitcoinClustersParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const analyzeInvestigationBitcoinClustersBodyMaxTransactionsDefault = 50;
+export const analyzeInvestigationBitcoinClustersBodyMaxTransactionsMax = 100;
+
+
+
+export const AnalyzeInvestigationBitcoinClustersBody = zod.object({
+  "max_transactions": zod.number().int().min(1).max(analyzeInvestigationBitcoinClustersBodyMaxTransactionsMax).default(analyzeInvestigationBitcoinClustersBodyMaxTransactionsDefault)
+})
+
+export const analyzeInvestigationBitcoinClustersResponseInferencesItemNumericScoreMin = 0;
+export const analyzeInvestigationBitcoinClustersResponseInferencesItemNumericScoreMax = 100;
+
+
+
+export const AnalyzeInvestigationBitcoinClustersResponse = zod.object({
+  "status": zod.enum(['OK', 'INSUFFICIENT_DATA']),
+  "analyzedTransactions": zod.number().int(),
+  "inferences": zod.array(zod.object({
+  "id": zod.string(),
+  "clusterKey": zod.string(),
+  "chain": zod.enum(['BITCOIN']),
+  "method": zod.string(),
+  "methodVersion": zod.string(),
+  "confidenceLevel": zod.enum(['UNKNOWN', 'POSSIBLE', 'LIKELY']),
+  "numericScore": zod.number().min(analyzeInvestigationBitcoinClustersResponseInferencesItemNumericScoreMin).max(analyzeInvestigationBitcoinClustersResponseInferencesItemNumericScoreMax),
+  "reviewStatus": zod.enum(['PENDING_REVIEW', 'ACCEPTED', 'REJECTED']),
+  "ambiguityReason": zod.string().nullish(),
+  "evidence": zod.array(zod.record(zod.string(), zod.unknown())),
+  "members": zod.array(zod.record(zod.string(), zod.unknown()))
+})),
+  "truncated": zod.boolean()
+})
+
+
+export const ListInvestigationClustersParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const listInvestigationClustersQueryLimitDefault = 50;
+export const listInvestigationClustersQueryLimitMax = 100;
+
+
+
+export const ListInvestigationClustersQueryParams = zod.object({
+  "limit": zod.coerce.number().int().min(1).max(listInvestigationClustersQueryLimitMax).default(listInvestigationClustersQueryLimitDefault)
+})
+
+export const listInvestigationClustersResponseNumericScoreMin = 0;
+export const listInvestigationClustersResponseNumericScoreMax = 100;
+
+
+
+export const ListInvestigationClustersResponseItem = zod.object({
+  "id": zod.string(),
+  "clusterKey": zod.string(),
+  "chain": zod.enum(['BITCOIN']),
+  "method": zod.string(),
+  "methodVersion": zod.string(),
+  "confidenceLevel": zod.enum(['UNKNOWN', 'POSSIBLE', 'LIKELY']),
+  "numericScore": zod.number().min(listInvestigationClustersResponseNumericScoreMin).max(listInvestigationClustersResponseNumericScoreMax),
+  "reviewStatus": zod.enum(['PENDING_REVIEW', 'ACCEPTED', 'REJECTED']),
+  "ambiguityReason": zod.string().nullish(),
+  "evidence": zod.array(zod.record(zod.string(), zod.unknown())),
+  "members": zod.array(zod.record(zod.string(), zod.unknown()))
+})
+export const ListInvestigationClustersResponse = zod.array(ListInvestigationClustersResponseItem)
+
+
+/**
+ * @summary Run deterministic evidence fusion for service and VASP candidates
+ */
+export const AnalyzeInvestigationVaspCandidatesParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const analyzeInvestigationVaspCandidatesBodyMaxAddressesDefault = 100;
+export const analyzeInvestigationVaspCandidatesBodyMaxAddressesMax = 250;
+
+export const analyzeInvestigationVaspCandidatesBodyMaxCandidatesDefault = 50;
+export const analyzeInvestigationVaspCandidatesBodyMaxCandidatesMax = 250;
+
+
+
+export const AnalyzeInvestigationVaspCandidatesBody = zod.object({
+  "max_addresses": zod.number().int().min(1).max(analyzeInvestigationVaspCandidatesBodyMaxAddressesMax).default(analyzeInvestigationVaspCandidatesBodyMaxAddressesDefault),
+  "max_candidates": zod.number().int().min(1).max(analyzeInvestigationVaspCandidatesBodyMaxCandidatesMax).default(analyzeInvestigationVaspCandidatesBodyMaxCandidatesDefault)
+})
+
+export const analyzeInvestigationVaspCandidatesResponseCandidatesItemNumericScoreMin = 0;
+export const analyzeInvestigationVaspCandidatesResponseCandidatesItemNumericScoreMax = 100;
+
+
+
+export const AnalyzeInvestigationVaspCandidatesResponse = zod.object({
+  "status": zod.enum(['OK', 'INSUFFICIENT_EVIDENCE']),
+  "candidates": zod.array(zod.object({
+  "id": zod.string(),
+  "chain": zod.string(),
+  "address": zod.string(),
+  "entityName": zod.string().nullish(),
+  "entityType": zod.string(),
+  "confidenceLevel": zod.enum(['UNKNOWN', 'POSSIBLE', 'LIKELY', 'CONFIRMED']),
+  "numericScore": zod.number().min(analyzeInvestigationVaspCandidatesResponseCandidatesItemNumericScoreMin).max(analyzeInvestigationVaspCandidatesResponseCandidatesItemNumericScoreMax),
+  "status": zod.enum(['PENDING_REVIEW', 'CONFLICTING_EVIDENCE', 'INSUFFICIENT_EVIDENCE', 'CONFIRMED_BY_REVIEW']),
+  "reason": zod.string(),
+  "contradictions": zod.array(zod.record(zod.string(), zod.unknown())),
+  "method": zod.string(),
+  "methodVersion": zod.string(),
+  "evidence": zod.array(zod.object({
+  "category": zod.enum(['DIRECT_BLOCKCHAIN_FACT', 'GRAPH_EVIDENCE', 'ADDRESS_INTELLIGENCE', 'CLUSTER_INFERENCE', 'ABUSE_INTELLIGENCE', 'SOURCE_AGREEMENT', 'SOURCE_QUALITY']),
+  "evidenceType": zod.string(),
+  "subjectType": zod.string(),
+  "subjectId": zod.string(),
+  "polarity": zod.enum(['SUPPORTING', 'NEGATIVE', 'CONTRADICTORY']),
+  "contribution": zod.number(),
+  "source": zod.string().nullish(),
+  "sourceReference": zod.string().nullish(),
+  "sourceUrl": zod.string().nullish(),
+  "retrievedAt": zod.coerce.date().nullish(),
+  "method": zod.string(),
+  "methodVersion": zod.string(),
+  "rawReference": zod.string().nullish(),
+  "details": zod.record(zod.string(), zod.unknown()).optional()
+}))
+})),
+  "truncated": zod.boolean()
+})
+
+
+export const ListInvestigationVaspCandidatesParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const listInvestigationVaspCandidatesQueryLimitDefault = 50;
+export const listInvestigationVaspCandidatesQueryLimitMax = 100;
+
+
+
+export const ListInvestigationVaspCandidatesQueryParams = zod.object({
+  "limit": zod.coerce.number().int().min(1).max(listInvestigationVaspCandidatesQueryLimitMax).default(listInvestigationVaspCandidatesQueryLimitDefault)
+})
+
+export const listInvestigationVaspCandidatesResponseNumericScoreMin = 0;
+export const listInvestigationVaspCandidatesResponseNumericScoreMax = 100;
+
+
+
+export const ListInvestigationVaspCandidatesResponseItem = zod.object({
+  "id": zod.string(),
+  "chain": zod.string(),
+  "address": zod.string(),
+  "entityName": zod.string().nullish(),
+  "entityType": zod.string(),
+  "confidenceLevel": zod.enum(['UNKNOWN', 'POSSIBLE', 'LIKELY', 'CONFIRMED']),
+  "numericScore": zod.number().min(listInvestigationVaspCandidatesResponseNumericScoreMin).max(listInvestigationVaspCandidatesResponseNumericScoreMax),
+  "status": zod.enum(['PENDING_REVIEW', 'CONFLICTING_EVIDENCE', 'INSUFFICIENT_EVIDENCE', 'CONFIRMED_BY_REVIEW']),
+  "reason": zod.string(),
+  "contradictions": zod.array(zod.record(zod.string(), zod.unknown())),
+  "method": zod.string(),
+  "methodVersion": zod.string(),
+  "evidence": zod.array(zod.object({
+  "category": zod.enum(['DIRECT_BLOCKCHAIN_FACT', 'GRAPH_EVIDENCE', 'ADDRESS_INTELLIGENCE', 'CLUSTER_INFERENCE', 'ABUSE_INTELLIGENCE', 'SOURCE_AGREEMENT', 'SOURCE_QUALITY']),
+  "evidenceType": zod.string(),
+  "subjectType": zod.string(),
+  "subjectId": zod.string(),
+  "polarity": zod.enum(['SUPPORTING', 'NEGATIVE', 'CONTRADICTORY']),
+  "contribution": zod.number(),
+  "source": zod.string().nullish(),
+  "sourceReference": zod.string().nullish(),
+  "sourceUrl": zod.string().nullish(),
+  "retrievedAt": zod.coerce.date().nullish(),
+  "method": zod.string(),
+  "methodVersion": zod.string(),
+  "rawReference": zod.string().nullish(),
+  "details": zod.record(zod.string(), zod.unknown()).optional()
+}))
+})
+export const ListInvestigationVaspCandidatesResponse = zod.array(ListInvestigationVaspCandidatesResponseItem)
+
+
+/**
  * @summary Read normalized wallet facts through an authorized provider adapter
  */
 export const GetLiveWalletProfileParams = zod.object({

@@ -63,6 +63,9 @@ export default defineConfig({
           },
         },
         zod: {
+          // The workspace intentionally pins Zod 3; make generator output
+          // deterministic rather than relying on Orval's auto-detection.
+          version: 3,
           coerce: {
             query: ['boolean', 'number', 'string'],
             param: ['boolean', 'number', 'string'],

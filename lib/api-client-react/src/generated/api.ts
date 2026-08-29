@@ -20,10 +20,14 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AddressIntelligenceLookup,
   AuditEvent,
   Case,
   CaseDetail,
   CaseInput,
+  ClusterInference,
+  ClusterRunInput,
+  ClusterRunResult,
   CollectionResult,
   ComplaintInput,
   Dashboard,
@@ -35,6 +39,8 @@ import type {
   InvestigationGraph,
   InvestigationInput,
   InvestigationTransitionInput,
+  ListInvestigationClustersParams,
+  ListInvestigationVaspCandidatesParams,
   LiveWalletResult,
   NormalizedTransactionBundle,
   PersistentCase,
@@ -45,6 +51,9 @@ import type {
   PredictionResult,
   Report,
   TraceInvestigationGraphParams,
+  VaspAnalysisInput,
+  VaspAnalysisResult,
+  VaspCandidate,
   Wallet,
   WalletInvestigationInput,
   WalletInvestigationResult
@@ -2070,6 +2079,438 @@ export function useTraceInvestigationGraph<TData = Awaited<ReturnType<typeof tra
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getTraceInvestigationGraphQueryOptions(id,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getLookupInvestigationAddressIntelligenceUrl = (id: string,
+    chain: 'BITCOIN' | 'ETHEREUM' | 'TRON',
+    address: string,) => {
+
+
+
+
+  return `/api/v1/investigations/${id}/address-intelligence/${chain}/${address}`
+}
+
+/**
+ * @summary Look up approved, case-scoped address intelligence observations
+ */
+export const lookupInvestigationAddressIntelligence = async (id: string,
+    chain: 'BITCOIN' | 'ETHEREUM' | 'TRON',
+    address: string, options?: RequestInit): Promise<AddressIntelligenceLookup> => {
+
+  const res = await fetch(getLookupInvestigationAddressIntelligenceUrl(id,chain,address),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: AddressIntelligenceLookup = body ? JSON.parse(body) : {}
+  return data
+}
+
+
+
+
+
+export const getLookupInvestigationAddressIntelligenceQueryKey = (id: string,
+    chain: 'BITCOIN' | 'ETHEREUM' | 'TRON',
+    address: string,) => {
+    return [
+    `/api/v1/investigations/${id}/address-intelligence/${chain}/${address}`
+    ] as const;
+    }
+
+
+export const getLookupInvestigationAddressIntelligenceQueryOptions = <TData = Awaited<ReturnType<typeof lookupInvestigationAddressIntelligence>>, TError = unknown>(id: string,
+    chain: 'BITCOIN' | 'ETHEREUM' | 'TRON',
+    address: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof lookupInvestigationAddressIntelligence>>, TError, TData>, fetch?: RequestInit}
+) => {
+
+const {query: queryOptions, fetch: fetchOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getLookupInvestigationAddressIntelligenceQueryKey(id,chain,address);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof lookupInvestigationAddressIntelligence>>> = ({ signal }) => lookupInvestigationAddressIntelligence(id,chain,address, { signal, ...fetchOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined && chain !== null && chain !== undefined && address !== null && address !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof lookupInvestigationAddressIntelligence>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type LookupInvestigationAddressIntelligenceQueryResult = NonNullable<Awaited<ReturnType<typeof lookupInvestigationAddressIntelligence>>>
+export type LookupInvestigationAddressIntelligenceQueryError = unknown
+
+
+/**
+ * @summary Look up approved, case-scoped address intelligence observations
+ */
+
+export function useLookupInvestigationAddressIntelligence<TData = Awaited<ReturnType<typeof lookupInvestigationAddressIntelligence>>, TError = unknown>(
+ id: string,
+    chain: 'BITCOIN' | 'ETHEREUM' | 'TRON',
+    address: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof lookupInvestigationAddressIntelligence>>, TError, TData>, fetch?: RequestInit}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getLookupInvestigationAddressIntelligenceQueryOptions(id,chain,address,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAnalyzeInvestigationBitcoinClustersUrl = (id: string,) => {
+
+
+
+
+  return `/api/v1/investigations/${id}/clusters`
+}
+
+/**
+ * @summary Run bounded, explainable Bitcoin cluster inference over stored facts
+ */
+export const analyzeInvestigationBitcoinClusters = async (id: string,
+    clusterRunInput?: ClusterRunInput, options?: RequestInit): Promise<ClusterRunResult> => {
+
+  const res = await fetch(getAnalyzeInvestigationBitcoinClustersUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(clusterRunInput)
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: ClusterRunResult = body ? JSON.parse(body) : {}
+  return data
+}
+
+
+
+
+
+export const getAnalyzeInvestigationBitcoinClustersMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof analyzeInvestigationBitcoinClusters>>, TError,{id: string;data?: ClusterRunInput}, TContext>, fetch?: RequestInit}
+): UseMutationOptions<Awaited<ReturnType<typeof analyzeInvestigationBitcoinClusters>>, TError,{id: string;data?: ClusterRunInput}, TContext> => {
+
+const mutationKey = ['analyzeInvestigationBitcoinClusters'];
+const {mutation: mutationOptions, fetch: fetchOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, fetch: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof analyzeInvestigationBitcoinClusters>>, {id: string;data?: ClusterRunInput}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  analyzeInvestigationBitcoinClusters(id,data,fetchOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AnalyzeInvestigationBitcoinClustersMutationResult = NonNullable<Awaited<ReturnType<typeof analyzeInvestigationBitcoinClusters>>>
+    export type AnalyzeInvestigationBitcoinClustersMutationBody = ClusterRunInput | undefined
+    export type AnalyzeInvestigationBitcoinClustersMutationError = unknown
+
+    /**
+ * @summary Run bounded, explainable Bitcoin cluster inference over stored facts
+ */
+export const useAnalyzeInvestigationBitcoinClusters = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof analyzeInvestigationBitcoinClusters>>, TError,{id: string;data?: ClusterRunInput}, TContext>, fetch?: RequestInit}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof analyzeInvestigationBitcoinClusters>>,
+        TError,
+        {id: string;data?: ClusterRunInput},
+        TContext
+      > => {
+      return useMutation(getAnalyzeInvestigationBitcoinClustersMutationOptions(options));
+    }
+
+export const getListInvestigationClustersUrl = (id: string,
+    params?: ListInvestigationClustersParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/investigations/${id}/clusters?${stringifiedParams}` : `/api/v1/investigations/${id}/clusters`
+}
+
+export const listInvestigationClusters = async (id: string,
+    params?: ListInvestigationClustersParams, options?: RequestInit): Promise<ClusterInference[]> => {
+
+  const res = await fetch(getListInvestigationClustersUrl(id,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: ClusterInference[] = body ? JSON.parse(body) : {}
+  return data
+}
+
+
+
+
+
+export const getListInvestigationClustersQueryKey = (id: string,
+    params?: ListInvestigationClustersParams,) => {
+    return [
+    `/api/v1/investigations/${id}/clusters`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListInvestigationClustersQueryOptions = <TData = Awaited<ReturnType<typeof listInvestigationClusters>>, TError = unknown>(id: string,
+    params?: ListInvestigationClustersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listInvestigationClusters>>, TError, TData>, fetch?: RequestInit}
+) => {
+
+const {query: queryOptions, fetch: fetchOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListInvestigationClustersQueryKey(id,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listInvestigationClusters>>> = ({ signal }) => listInvestigationClusters(id,params, { signal, ...fetchOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listInvestigationClusters>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListInvestigationClustersQueryResult = NonNullable<Awaited<ReturnType<typeof listInvestigationClusters>>>
+export type ListInvestigationClustersQueryError = unknown
+
+
+
+export function useListInvestigationClusters<TData = Awaited<ReturnType<typeof listInvestigationClusters>>, TError = unknown>(
+ id: string,
+    params?: ListInvestigationClustersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listInvestigationClusters>>, TError, TData>, fetch?: RequestInit}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListInvestigationClustersQueryOptions(id,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAnalyzeInvestigationVaspCandidatesUrl = (id: string,) => {
+
+
+
+
+  return `/api/v1/investigations/${id}/vasp-analysis`
+}
+
+/**
+ * @summary Run deterministic evidence fusion for service and VASP candidates
+ */
+export const analyzeInvestigationVaspCandidates = async (id: string,
+    vaspAnalysisInput?: VaspAnalysisInput, options?: RequestInit): Promise<VaspAnalysisResult> => {
+
+  const res = await fetch(getAnalyzeInvestigationVaspCandidatesUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(vaspAnalysisInput)
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: VaspAnalysisResult = body ? JSON.parse(body) : {}
+  return data
+}
+
+
+
+
+
+export const getAnalyzeInvestigationVaspCandidatesMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof analyzeInvestigationVaspCandidates>>, TError,{id: string;data?: VaspAnalysisInput}, TContext>, fetch?: RequestInit}
+): UseMutationOptions<Awaited<ReturnType<typeof analyzeInvestigationVaspCandidates>>, TError,{id: string;data?: VaspAnalysisInput}, TContext> => {
+
+const mutationKey = ['analyzeInvestigationVaspCandidates'];
+const {mutation: mutationOptions, fetch: fetchOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, fetch: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof analyzeInvestigationVaspCandidates>>, {id: string;data?: VaspAnalysisInput}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  analyzeInvestigationVaspCandidates(id,data,fetchOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AnalyzeInvestigationVaspCandidatesMutationResult = NonNullable<Awaited<ReturnType<typeof analyzeInvestigationVaspCandidates>>>
+    export type AnalyzeInvestigationVaspCandidatesMutationBody = VaspAnalysisInput | undefined
+    export type AnalyzeInvestigationVaspCandidatesMutationError = unknown
+
+    /**
+ * @summary Run deterministic evidence fusion for service and VASP candidates
+ */
+export const useAnalyzeInvestigationVaspCandidates = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof analyzeInvestigationVaspCandidates>>, TError,{id: string;data?: VaspAnalysisInput}, TContext>, fetch?: RequestInit}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof analyzeInvestigationVaspCandidates>>,
+        TError,
+        {id: string;data?: VaspAnalysisInput},
+        TContext
+      > => {
+      return useMutation(getAnalyzeInvestigationVaspCandidatesMutationOptions(options));
+    }
+
+export const getListInvestigationVaspCandidatesUrl = (id: string,
+    params?: ListInvestigationVaspCandidatesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/investigations/${id}/vasp-candidates?${stringifiedParams}` : `/api/v1/investigations/${id}/vasp-candidates`
+}
+
+export const listInvestigationVaspCandidates = async (id: string,
+    params?: ListInvestigationVaspCandidatesParams, options?: RequestInit): Promise<VaspCandidate[]> => {
+
+  const res = await fetch(getListInvestigationVaspCandidatesUrl(id,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: VaspCandidate[] = body ? JSON.parse(body) : {}
+  return data
+}
+
+
+
+
+
+export const getListInvestigationVaspCandidatesQueryKey = (id: string,
+    params?: ListInvestigationVaspCandidatesParams,) => {
+    return [
+    `/api/v1/investigations/${id}/vasp-candidates`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListInvestigationVaspCandidatesQueryOptions = <TData = Awaited<ReturnType<typeof listInvestigationVaspCandidates>>, TError = unknown>(id: string,
+    params?: ListInvestigationVaspCandidatesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listInvestigationVaspCandidates>>, TError, TData>, fetch?: RequestInit}
+) => {
+
+const {query: queryOptions, fetch: fetchOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListInvestigationVaspCandidatesQueryKey(id,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listInvestigationVaspCandidates>>> = ({ signal }) => listInvestigationVaspCandidates(id,params, { signal, ...fetchOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listInvestigationVaspCandidates>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListInvestigationVaspCandidatesQueryResult = NonNullable<Awaited<ReturnType<typeof listInvestigationVaspCandidates>>>
+export type ListInvestigationVaspCandidatesQueryError = unknown
+
+
+
+export function useListInvestigationVaspCandidates<TData = Awaited<ReturnType<typeof listInvestigationVaspCandidates>>, TError = unknown>(
+ id: string,
+    params?: ListInvestigationVaspCandidatesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listInvestigationVaspCandidates>>, TError, TData>, fetch?: RequestInit}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListInvestigationVaspCandidatesQueryOptions(id,params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

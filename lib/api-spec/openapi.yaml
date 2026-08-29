@@ -284,6 +284,43 @@ paths:
         - { name: start_time, in: query, schema: { type: string, format: date-time } }
         - { name: end_time, in: query, schema: { type: string, format: date-time } }
       responses: { "200": { description: Evidence-backed graph from stored normalized facts, content: { application/json: { schema: { $ref: "#/components/schemas/InvestigationGraph" } } } } }
+  /v1/investigations/{id}/address-intelligence/{chain}/{address}:
+    get:
+      operationId: lookupInvestigationAddressIntelligence
+      tags: [cashnet]
+      summary: Look up approved, case-scoped address intelligence observations
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: chain, in: path, required: true, schema: { type: string, enum: [BITCOIN, ETHEREUM, TRON] } }
+        - { name: address, in: path, required: true, schema: { type: string } }
+      responses: { "200": { description: Observations and explicit conflicts; never an identity claim, content: { application/json: { schema: { $ref: "#/components/schemas/AddressIntelligenceLookup" } } } } }
+  /v1/investigations/{id}/clusters:
+    post:
+      operationId: analyzeInvestigationBitcoinClusters
+      tags: [cashnet]
+      summary: Run bounded, explainable Bitcoin cluster inference over stored facts
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      requestBody: { required: false, content: { application/json: { schema: { $ref: "#/components/schemas/ClusterRunInput" } } } }
+      responses: { "200": { description: Review-required inferences, content: { application/json: { schema: { $ref: "#/components/schemas/ClusterRunResult" } } } } }
+    get:
+      operationId: listInvestigationClusters
+      tags: [cashnet]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }, { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }]
+      responses: { "200": { description: Stored review-required cluster inferences, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/ClusterInference" } } } } } }
+  /v1/investigations/{id}/vasp-analysis:
+    post:
+      operationId: analyzeInvestigationVaspCandidates
+      tags: [cashnet]
+      summary: Run deterministic evidence fusion for service and VASP candidates
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      requestBody: { required: false, content: { application/json: { schema: { $ref: "#/components/schemas/VaspAnalysisInput" } } } }
+      responses: { "200": { description: "Investigative candidates, not person attribution", content: { application/json: { schema: { $ref: "#/components/schemas/VaspAnalysisResult" } } } } }
+  /v1/investigations/{id}/vasp-candidates:
+    get:
+      operationId: listInvestigationVaspCandidates
+      tags: [cashnet]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }, { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }]
+      responses: { "200": { description: Persisted candidate records with traceable evidence, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/VaspCandidate" } } } } } }
   /v1/wallets/{chain}/{address}:
     get:
       operationId: getLiveWalletProfile
@@ -853,4 +890,104 @@ components:
         metadata: { type: object, additionalProperties: true }
         limitsApplied: { type: object, additionalProperties: true }
         evidenceReferences: { type: array, items: { $ref: "#/components/schemas/GraphEvidence" } }
+    AddressIntelligenceObservation:
+      type: object
+      required: [id, chain, address, entityType, source, retrievedAt, freshnessStatus, confidence, status]
+      properties:
+        id: { type: string }
+        chain: { type: string }
+        address: { type: string }
+        label: { type: [string, "null"] }
+        entityName: { type: [string, "null"] }
+        entityType: { type: string, enum: [EXCHANGE, VASP, CUSTODIAL_SERVICE, DEX, BRIDGE, MIXER, MINING_POOL, DEFI, SCAM, PHISHING, SANCTIONED_ENTITY, OTHER, UNKNOWN] }
+        source: { type: string }
+        sourceReference: { type: [string, "null"] }
+        sourceUrl: { type: [string, "null"] }
+        datasetName: { type: [string, "null"] }
+        datasetVersion: { type: [string, "null"] }
+        license: { type: [string, "null"] }
+        retrievedAt: { type: string, format: date-time }
+        freshnessStatus: { type: string, enum: [FRESH, STALE, EXPIRED, UNKNOWN] }
+        confidence: { type: number, minimum: 0, maximum: 1 }
+        status: { type: string, enum: [UNKNOWN, ACTIVE, STALE, CONFLICTING, REVIEW_REQUIRED] }
+    AddressIntelligenceLookup:
+      type: object
+      required: [status, observations, conflicts]
+      properties:
+        status: { type: string, enum: [SUCCESS, NOT_CONFIGURED, UNAVAILABLE] }
+        observations: { type: array, items: { $ref: "#/components/schemas/AddressIntelligenceObservation" } }
+        conflicts: { type: array, items: { type: object, additionalProperties: true } }
+    ClusterRunInput:
+      type: object
+      properties: { max_transactions: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+    ClusterInference:
+      type: object
+      required: [id, chain, clusterKey, method, methodVersion, confidenceLevel, numericScore, reviewStatus, evidence, members]
+      properties:
+        id: { type: string }
+        clusterKey: { type: string }
+        chain: { type: string, enum: [BITCOIN] }
+        method: { type: string }
+        methodVersion: { type: string }
+        confidenceLevel: { type: string, enum: [UNKNOWN, POSSIBLE, LIKELY] }
+        numericScore: { type: number, minimum: 0, maximum: 100 }
+        reviewStatus: { type: string, enum: [PENDING_REVIEW, ACCEPTED, REJECTED] }
+        ambiguityReason: { type: [string, "null"] }
+        evidence: { type: array, items: { type: object, additionalProperties: true } }
+        members: { type: array, items: { type: object, additionalProperties: true } }
+    ClusterRunResult:
+      type: object
+      required: [status, analyzedTransactions, inferences, truncated]
+      properties:
+        status: { type: string, enum: [OK, INSUFFICIENT_DATA] }
+        analyzedTransactions: { type: integer }
+        inferences: { type: array, items: { $ref: "#/components/schemas/ClusterInference" } }
+        truncated: { type: boolean }
+    VaspAnalysisInput:
+      type: object
+      properties:
+        max_addresses: { type: integer, minimum: 1, maximum: 250, default: 100 }
+        max_candidates: { type: integer, minimum: 1, maximum: 250, default: 50 }
+    AttributionEvidence:
+      type: object
+      required: [category, evidenceType, subjectType, subjectId, polarity, contribution, method, methodVersion]
+      properties:
+        category: { type: string, enum: [DIRECT_BLOCKCHAIN_FACT, GRAPH_EVIDENCE, ADDRESS_INTELLIGENCE, CLUSTER_INFERENCE, ABUSE_INTELLIGENCE, SOURCE_AGREEMENT, SOURCE_QUALITY] }
+        evidenceType: { type: string }
+        subjectType: { type: string }
+        subjectId: { type: string }
+        polarity: { type: string, enum: [SUPPORTING, NEGATIVE, CONTRADICTORY] }
+        contribution: { type: number }
+        source: { type: [string, "null"] }
+        sourceReference: { type: [string, "null"] }
+        sourceUrl: { type: [string, "null"] }
+        retrievedAt: { type: [string, "null"], format: date-time }
+        method: { type: string }
+        methodVersion: { type: string }
+        rawReference: { type: [string, "null"] }
+        details: { type: object, additionalProperties: true }
+    VaspCandidate:
+      type: object
+      required: [id, chain, address, entityType, confidenceLevel, numericScore, status, reason, contradictions, method, methodVersion, evidence]
+      properties:
+        id: { type: string }
+        chain: { type: string }
+        address: { type: string }
+        entityName: { type: [string, "null"] }
+        entityType: { type: string }
+        confidenceLevel: { type: string, enum: [UNKNOWN, POSSIBLE, LIKELY, CONFIRMED] }
+        numericScore: { type: number, minimum: 0, maximum: 100 }
+        status: { type: string, enum: [PENDING_REVIEW, CONFLICTING_EVIDENCE, INSUFFICIENT_EVIDENCE, CONFIRMED_BY_REVIEW] }
+        reason: { type: string }
+        contradictions: { type: array, items: { type: object, additionalProperties: true } }
+        method: { type: string }
+        methodVersion: { type: string }
+        evidence: { type: array, items: { $ref: "#/components/schemas/AttributionEvidence" } }
+    VaspAnalysisResult:
+      type: object
+      required: [status, candidates, truncated]
+      properties:
+        status: { type: string, enum: [OK, INSUFFICIENT_EVIDENCE] }
+        candidates: { type: array, items: { $ref: "#/components/schemas/VaspCandidate" } }
+        truncated: { type: boolean }
 
