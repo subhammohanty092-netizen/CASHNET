@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
 import * as schema from "./schema";
@@ -27,6 +28,31 @@ let connection: ReturnType<typeof createDatabase> | undefined;
 export function getDatabase(): ReturnType<typeof createDatabase> {
   connection ??= createDatabase();
   return connection;
+}
+
+/**
+ * Returns only connection identity fields through the same singleton Drizzle
+ * executor used by repositories. It intentionally never exposes a connection
+ * string, password, or other credential material.
+ */
+export async function getDatabaseRuntimeIdentity() {
+  const result = await getDatabase().db.execute(sql`
+    select
+      current_database() as database_name,
+      current_user as database_user,
+      inet_server_addr()::text as server_address,
+      inet_server_port() as server_port,
+      version() as server_version
+  `);
+  const row = result.rows[0] as Record<string, unknown> | undefined;
+  if (!row) throw new Error("PostgreSQL runtime identity query returned no row.");
+  return {
+    databaseName: String(row.database_name),
+    databaseUser: String(row.database_user),
+    serverAddress: row.server_address == null ? null : String(row.server_address),
+    serverPort: row.server_port == null ? null : Number(row.server_port),
+    serverVersion: String(row.server_version),
+  };
 }
 
 export * from "./schema";

@@ -21,32 +21,43 @@ The repository matrix supplies the inputs and legal boundaries; the operational-
 
 | Gate | Status | Evidence |
 | --- | --- | --- |
-| PostgreSQL migration/persistence | PENDING_VALIDATION | No `DATABASE_URL` or local PostgreSQL runtime is configured. |
+| PostgreSQL migration/persistence | BLOCKED | A running local process reports authorized mode and the user reports a successful migration, but this task has no connection configuration to re-run the ledger/schema checks. Passwordless `psql` fails with `fe_sendauth: no password supplied`. The authenticated failure is isolated to actor lookup before case/investigation mapping; it requires a restart with the diagnostic repair to reveal the PostgreSQL code. |
 | Etherscan V2 / Esplora / TronGrid live read | PENDING_VALIDATION | No authorized provider configuration is present. |
-| Approved address-label dataset | PENDING_VALIDATION | Adapter is implemented but no dataset manifest/path/licence approval is configured. |
+| Approved address-label dataset | DATASET_PENDING_APPROVAL | Adapter is implemented but no dataset manifest/path/licence approval is configured. |
 | Controlled rule/metric regression | IMPLEMENTED | Deterministic tests plus `evaluate-phase5` held-out metric utility. |
 | Human review | IMPLEMENTED | `POST /api/v1/investigations/:id/vasp-candidates/:candidateId/review`. |
-| Phase 5 production-like quality gate | VALIDATION_INCOMPLETE | Live database/source/ground-truth evidence is required. |
+| Legacy synthetic `/api/*` regression | PASS | Existing live process returned HTTP 200 from `/api/healthz` and `/api/dashboard`. |
+| Local bounded performance sample | PASS (non-production) | Twenty v1-health requests completed in 155.56 ms total. |
+| Phase 5 production-like quality gate | VALIDATION_INCOMPLETE | Reproducible database/source/ground-truth evidence is required. |
 
-The API production build passed on 2026-08-29 when the project’s existing esbuild command was allowed to resolve its local dependencies outside the sandbox. This does not satisfy the live-data quality gates.
+The migration repair is prepared but not yet live-validated in this task because
+the local PostgreSQL service requires password authentication and no task-level
+`DATABASE_URL` is configured. The candidate engine was also corrected so graph
+evidence is calculated from the candidate address's own stored relationships,
+not the investigation-wide edge count.
+
+On 2026-08-30 the API production bundle passed in 1.602 s when the project’s existing esbuild command was allowed normal local filesystem access. This does not satisfy the live-data quality gates.
 
 ## Required tool and repository status
 
 | Tool / repository | Status | Actual use |
 | --- | --- | --- |
-| CASHNET Phase 4 graph | IMPLEMENTED | Case-scoped stored relationship input to Phase 5. |
-| Etherscan V2 | PENDING_VALIDATION | Existing Phase 3 adapter; no live credentials validated here. |
-| Esplora-compatible API | PENDING_VALIDATION | Existing Phase 3 adapter; no approved live endpoint validated here. |
-| TronGrid | PENDING_VALIDATION | Existing Phase 3 adapter; no live credentials validated here. |
-| `crypto-wallet-address-labels` | PENDING_VALIDATION | Local approved-dataset adapter exists; no dataset was approved/imported. |
-| `bitcoin-address-clustering` | IMPLEMENTED | Clean-room common-input/cautious-change methodology only. |
+| CASHNET Phase 4 graph | OPERATIONALLY_CONNECTED | Case-scoped stored relationship input to Phase 5. |
+| Etherscan V2 | IMPLEMENTED_PENDING_LIVE_VALIDATION | Existing Phase 3 adapter; no live credentials validated here. |
+| Esplora-compatible API | IMPLEMENTED_PENDING_LIVE_VALIDATION | Existing Phase 3 adapter; no approved live endpoint validated here. |
+| TronGrid | IMPLEMENTED_PENDING_LIVE_VALIDATION | Existing Phase 3 adapter; no live credentials validated here. |
+| `crypto-wallet-address-labels` | DATASET_PENDING_APPROVAL | Local approved-dataset adapter exists; no dataset was approved/imported. |
+| `bitcoin-address-clustering` | METHODOLOGY_IMPLEMENTED | Clean-room common-input/cautious-change methodology only; external repository remains REFERENCE_ONLY. |
 | `am-i-exposed` | REFERENCE_ONLY | Bitcoin tracing methodology. |
 | Open-Source-Blockchain-Forensics | REFERENCE_ONLY | Forensic/evidence methodology. |
 | `mev-wallet-cluster-analysis` | REFERENCE_ONLY | Ethereum relationship/evidence methodology. |
 | Evidencly | REFERENCE_ONLY | Case/evidence workflow methodology. |
 | ChainForensics | REFERENCE_ONLY | AGPL-3.0; no code copied. |
 | OpenAML | REFERENCE_ONLY | Later AML/risk evaluation concepts. |
-| Chainabuse | OPTIONAL | Interface only; no request, data, or dependency. |
+| Chainabuse | OPTIONAL_NOT_CONFIGURED | No adapter, request, data, or dependency. |
+
+The precise static runtime/import audit is maintained in
+[phase5-tool-integration-matrix.md](phase5-tool-integration-matrix.md).
 
 ## Controlled validation procedure
 
@@ -61,3 +72,6 @@ pnpm --filter @workspace/scripts run evaluate-phase5 <held-out-evaluation.json>
 ```
 
 6. Record environment, source versions, method versions, retrieval times, and resulting metrics. Do not create a release tag until all quality gates pass.
+
+The current release decision is authoritative in
+[phase5-final-validation.md](phase5-final-validation.md).

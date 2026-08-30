@@ -53,13 +53,36 @@ create table if not exists service_address_assessments (
 );
 create unique index if not exists service_address_assessment_identity_unique on service_address_assessments (case_id, investigation_id, chain, lower(address));
 
-create table if not exists vasp_candidates (
-  id uuid primary key default gen_random_uuid(), case_id uuid not null references cases(id) on delete cascade, investigation_id uuid not null references investigations(id) on delete cascade,
-  chain text not null, address text not null, entity_name text, entity_type text not null, confidence_level text not null check (confidence_level in ('UNKNOWN', 'POSSIBLE', 'LIKELY', 'CONFIRMED')),
-  numeric_score numeric not null check (numeric_score >= 0 and numeric_score <= 100), status text not null check (status in ('PENDING_REVIEW', 'CONFLICTING_EVIDENCE', 'INSUFFICIENT_EVIDENCE', 'CONFIRMED_BY_REVIEW')),
-  reason text not null, contradictions jsonb not null default '[]'::jsonb, method text not null, method_version text not null, created_at timestamptz not null default now(), updated_at timestamptz not null default now()
-);
-create unique index if not exists vasp_candidate_identity_unique on vasp_candidates (case_id, investigation_id, chain, lower(address), coalesce(entity_name, ''), method, method_version);
+-- Phase 1 already owns the vasp_candidates relation for legacy /api data.  Evolve
+-- it in place: legacy rows do not have a wallet address or investigation scope and
+-- must remain readable, while Phase 5 rows are constrained by the check below.
+alter table vasp_candidates add column if not exists investigation_id uuid references investigations(id) on delete cascade;
+alter table vasp_candidates add column if not exists address text;
+alter table vasp_candidates add column if not exists entity_name text;
+alter table vasp_candidates add column if not exists entity_type text check (entity_type in ('EXCHANGE', 'VASP', 'CUSTODIAL_SERVICE', 'DEX', 'BRIDGE', 'MIXER', 'MINING_POOL', 'DEFI', 'SCAM', 'PHISHING', 'SANCTIONED_ENTITY', 'OTHER', 'UNKNOWN'));
+alter table vasp_candidates add column if not exists confidence_level text check (confidence_level in ('UNKNOWN', 'POSSIBLE', 'LIKELY', 'CONFIRMED'));
+alter table vasp_candidates add column if not exists numeric_score numeric check (numeric_score >= 0 and numeric_score <= 100);
+alter table vasp_candidates add column if not exists status text check (status in ('PENDING_REVIEW', 'CONFLICTING_EVIDENCE', 'INSUFFICIENT_EVIDENCE', 'CONFIRMED_BY_REVIEW'));
+alter table vasp_candidates add column if not exists reason text;
+alter table vasp_candidates add column if not exists contradictions jsonb not null default '[]'::jsonb;
+alter table vasp_candidates add column if not exists method text;
+alter table vasp_candidates add column if not exists method_version text;
+alter table vasp_candidates add column if not exists updated_at timestamptz not null default now();
+
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'vasp_candidates_phase5_record_check' and conrelid = 'vasp_candidates'::regclass) then
+    alter table vasp_candidates add constraint vasp_candidates_phase5_record_check check (
+      investigation_id is null or (
+        case_id is not null and address is not null and entity_type is not null and confidence_level is not null and
+        numeric_score is not null and status is not null and reason is not null and method is not null and method_version is not null
+      )
+    );
+  end if;
+end $$;
+
+create unique index if not exists vasp_candidate_identity_unique on vasp_candidates (case_id, investigation_id, chain, lower(address), coalesce(entity_name, ''), method, method_version)
+  where investigation_id is not null and address is not null;
 create index if not exists vasp_candidate_lookup_idx on vasp_candidates (case_id, investigation_id, numeric_score desc, created_at desc);
 
 create table if not exists attribution_evidence (

@@ -6,7 +6,7 @@ import { conflictsFor } from "./services/intelligence/address-intelligence-servi
 import { fuseAttributionEvidence } from "./services/intelligence/attribution-evidence-fusion-service";
 import { inferBitcoinCluster } from "./services/intelligence/bitcoin-cluster-inference-service";
 import { evaluateHeldOutCases } from "./services/intelligence/evaluation";
-import { canConfirmCandidate } from "./services/intelligence/vasp-candidate-service";
+import { canConfirmCandidate, candidateEvidence } from "./services/intelligence/vasp-candidate-service";
 
 const observation = (entityName: string, source: string, freshnessStatus: AddressIntelligenceObservationRecord["freshnessStatus"] = "FRESH"): AddressIntelligenceObservationRecord => ({ id: `${source}-${entityName}`, caseId: "case-a", investigationId: "investigation-a", chain: "ETHEREUM", address: "0xdeposit", label: entityName, entityName, entityType: "EXCHANGE", source, sourceReference: source, sourceUrl: null, datasetName: "fixture", datasetVersion: "1", license: "MIT", retrievedAt: "2026-01-01T00:00:00.000Z", lastVerified: "2026-01-01T00:00:00.000Z", freshnessStatus, confidence: 0.8, status: "ACTIVE", rawReference: null, rawData: null, createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z" });
 const evidence = (source: string, contribution: number, polarity: AttributionEvidenceInput["polarity"] = "SUPPORTING"): AttributionEvidenceInput => ({ category: "ADDRESS_INTELLIGENCE", evidenceType: "PUBLIC_SERVICE_LABEL", subjectType: "address", subjectId: "ETHEREUM:0xdeposit", polarity, contribution, source, sourceReference: source, sourceUrl: null, retrievedAt: "2026-01-01T00:00:00.000Z", method: "fixture", methodVersion: "1", rawReference: null, details: {} });
@@ -23,6 +23,10 @@ test("Phase 5 keeps no intelligence as UNKNOWN and surfaces conflicting labels",
 test("Phase 5 applies stale and contradictory evidence as negative signals", () => {
   const result = fuseAttributionEvidence([evidence("source-a", 45), evidence("freshness", -15, "NEGATIVE"), evidence("source-b", -35, "CONTRADICTORY")]);
   assert.equal(result.confidenceLevel, "UNKNOWN"); assert.equal(result.numericScore, 0);
+});
+test("Phase 5 graph evidence is scoped to the candidate address", () => {
+  assert.equal(candidateEvidence("ETHEREUM", "0xaddress", [], 0, false).some((item) => item.category === "GRAPH_EVIDENCE"), false);
+  assert.equal(candidateEvidence("ETHEREUM", "0xaddress", [], 2, false).find((item) => item.category === "GRAPH_EVIDENCE")?.contribution, 10);
 });
 test("Phase 5 common-input inference is review-required and never confirmed", () => {
   const result = inferBitcoinCluster(bitcoin(["bc1a", "bc1b"], [["bc1out1", "150"], ["bc1out2", "50"]]));
@@ -42,6 +46,17 @@ test("Phase 5 migration, ledger, APIs and source boundary are explicit", async (
   const routes = await readFile(new URL("../src/routes/v1/investigations.ts", import.meta.url), "utf8");
   for (const item of ["address_intelligence_observations", "cluster_inferences", "vasp_candidates", "attribution_evidence", "INTELLIGENCE_READ", "VASP_ANALYZE"]) assert.match(migration, new RegExp(item));
   assert.match(runner, /20260831_phase5_intelligence/); for (const item of ["address-intelligence", "clusters", "vasp-analysis", "vasp-candidates", "review"]) assert.match(routes, new RegExp(item));
+});
+test("API development startup script is shell-neutral for Windows and CI", async () => {
+  const manifest = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8")) as { scripts?: Record<string, string> };
+  assert.equal(manifest.scripts?.dev, "pnpm run build && pnpm run start");
+  assert.doesNotMatch(manifest.scripts?.dev ?? "", /export\s+NODE_ENV/);
+});
+test("Phase 5 evolves the legacy VASP relation before using its address identity index", async () => {
+  const migration = await readFile(new URL("../../../database/migrations/20260831_phase5_intelligence.sql", import.meta.url), "utf8");
+  const legacyColumn = migration.indexOf("alter table vasp_candidates add column if not exists address text");
+  const identityIndex = migration.indexOf("create unique index if not exists vasp_candidate_identity_unique");
+  assert.ok(legacyColumn >= 0); assert.ok(identityIndex > legacyColumn); assert.match(migration, /where investigation_id is not null and address is not null/);
 });
 test("Phase 5 confirmation is human-review-only and rejects conflicted or weak candidates", () => {
   const base = { confidenceLevel: "LIKELY", status: "PENDING_REVIEW", contradictions: [], evidence: [{ polarity: "SUPPORTING", source: "source-a" }, { polarity: "SUPPORTING", source: "source-b" }] };

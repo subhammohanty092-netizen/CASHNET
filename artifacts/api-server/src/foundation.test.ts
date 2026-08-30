@@ -4,7 +4,7 @@ import { createServer } from "node:http";
 import { test } from "node:test";
 import express from "express";
 import { createConfig } from "./config";
-import { apiErrorHandler } from "./errors/middleware";
+import { apiErrorHandler, operationalErrorDetails } from "./errors/middleware";
 import v1Router from "./routes/v1";
 import { SyntheticBlockchainProvider } from "./services/blockchain/provider";
 import { syntheticCaseService } from "./services/investigation/synthetic-case-service";
@@ -61,6 +61,21 @@ test("v1 health and error responses are consistent while synthetic fixtures rema
 
   assert.equal(syntheticCaseService.listCases().length, 4);
   assert.equal(syntheticCaseService.wallets()[0].sourceType, "SYNTHETIC");
+});
+
+test("unexpected PostgreSQL diagnostics remain server-observable but redact connection secrets", () => {
+  const pgError = Object.assign(new Error("column \"status\" does not exist; password=do-not-log"), {
+    code: "42703",
+    table: "users",
+    column: "status",
+  });
+  assert.deepEqual(operationalErrorDetails(pgError), {
+    type: "Error",
+    message: "column \"status\" does not exist; password= [REDACTED]",
+    databaseCode: "42703",
+    table: "users",
+    column: "status",
+  });
 });
 
 test("Phase 1 migration contains the required indexed normalized records", async () => {
