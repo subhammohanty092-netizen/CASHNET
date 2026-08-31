@@ -46,22 +46,22 @@
 | 36 | Build | ✅ PASS | 2.1MB bundle |
 | 37 | git diff --check | ✅ PASS | Clean |
 
-## Tool/Repository Matrix
+## Tool/Repository Matrix (Code-Level Gap Audit)
 
-| Repository | Classification | Notes |
+| Repository | Classification | Code Evidence |
 |---|---|---|
-| Etherscan V2 | LIVE_VALIDATED | 283 txs from 0xde0b295669a9fd93d5f28d9ec85e40f4cb697bae via api.etherscan.io/v2 |
-| Esplora | LIVE_VALIDATED | 25 txs from 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa via blockstream.info/api |
-| TronGrid | LIVE_VALIDATED | 200 txs from TLyqzVGLV1srkB7dToTAEqgDSfPtXRJZYH via api.trongrid.io |
-| crypto-wallet-address-labels | DATASET_PENDING_APPROVAL | Governed adapter implemented |
-| bitcoin-address-clustering | METHODOLOGY_IMPLEMENTED | Clean-room implementation |
-| am-i-exposed | REFERENCE_ONLY | |
-| Open-Source-Blockchain-Forensics | REFERENCE_ONLY | |
-| mev-wallet-cluster-analysis | REFERENCE_ONLY | |
-| Evidencly | REFERENCE_ONLY | |
-| ChainForensics | REFERENCE_ONLY (AGPL-3.0, NO CODE COPYING) | |
-| OpenAML | REFERENCE_ONLY | |
-| Chainabuse | OPTIONAL_NOT_CONFIGURED | |
+| Etherscan V2 | `LIVE_VALIDATED` | 283 txs from ETH Foundation via api.etherscan.io/v2 |
+| Esplora | `LIVE_VALIDATED` | 25 txs from Bitcoin genesis address via blockstream.info/api |
+| TronGrid | `LIVE_VALIDATED` | 200 txs from TLyqzVGLV1srkB7dToTAEqgDSfPtXRJZYH via api.trongrid.io |
+| crypto-wallet-address-labels | `DATASET_PENDING_APPROVAL` | Adapter + service + persistence + RBAC + audit implemented; governance blocker |
+| bitcoin-address-clustering | `CLEAN_ROOM_IMPLEMENTED` | 5 tests, 49-line service, 3 heuristics, review-required, CoinJoin detection |
+| am-i-exposed | `CLEAN_ROOM_IMPLEMENTED` | Phase 4 graph BFS with path ranking, evidence completeness, filtering |
+| Open-Source-Blockchain-Forensics | `CLEAN_ROOM_IMPLEMENTED` | Evidence service + provenance chain + contentHash + audit trail |
+| Evidencly | `CLEAN_ROOM_IMPLEMENTED` | 10 evidence types + 3 polarity types + deterministic fusion + integrity hash |
+| ChainForensics | `CLEAN_ROOM_IMPLEMENTED` | UTXO flow + clustering + graph — zero AGPL code copied |
+| OpenAML | `REFERENCE_ONLY` | Risk signals exist in evidence fusion; standalone AML service is Phase 6 |
+| mev-wallet-cluster-analysis | `OUT_OF_SCOPE` | DeFi MEV analytics — Phase 6+ |
+| Chainabuse | `OUT_OF_SCOPE` | Schema exists (abuse_intelligence_observations); commercial API requires procurement |
 
 ## Security Defects Found and Fixed
 
