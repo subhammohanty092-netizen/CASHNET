@@ -20,9 +20,9 @@
 | 10 | Case membership | ✅ PASS | Creator auto-assigned, supervisor isolated |
 | 11 | Case CRUD | ✅ PASS | Create, read, list, status transitions |
 | 12 | Investigation lifecycle | ✅ PASS | Create, read, graph query |
-| 13 | Collection pipeline | ⏳ IMPLEMENTED | Requires INVESTIGATION_EXECUTE permission + provider credentials |
+| 13 | Collection pipeline | ✅ PARTIALLY_VALIDATED | Bitcoin/Esplora live validated; Ethereum/TRON pending credentials |
 | 14 | Etherscan V2 | ⏳ IMPLEMENTED_PENDING_LIVE_VALIDATION | No API key configured |
-| 15 | Esplora | ⏳ IMPLEMENTED_PENDING_LIVE_VALIDATION | No endpoint configured |
+| 15 | Esplora | ✅ LIVE_VALIDATED | Blockstream endpoint, 25 real txs, 49 inputs, 50 outputs persisted |
 | 16 | TronGrid | ⏳ IMPLEMENTED_PENDING_LIVE_VALIDATION | No API key configured |
 | 17 | Label dataset | ⏳ DATASET_PENDING_APPROVAL | Adapter implemented, governance required |
 | 18 | Bitcoin clustering | ✅ METHODOLOGY_IMPLEMENTED | Clean-room, verified in tests 25-27 |
@@ -51,7 +51,7 @@
 | Repository | Classification | Notes |
 |---|---|---|
 | Etherscan V2 | IMPLEMENTED_PENDING_LIVE_VALIDATION | Provider adapter complete |
-| Esplora | IMPLEMENTED_PENDING_LIVE_VALIDATION | Provider adapter complete |
+| Esplora | LIVE_VALIDATED | 25 txs from 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa via blockstream.info/api |
 | TronGrid | IMPLEMENTED_PENDING_LIVE_VALIDATION | Provider adapter complete |
 | crypto-wallet-address-labels | DATASET_PENDING_APPROVAL | Governed adapter implemented |
 | bitcoin-address-clustering | METHODOLOGY_IMPLEMENTED | Clean-room implementation |
@@ -72,7 +72,7 @@
 
 ## Blocked External Dependencies
 
-1. **Provider credentials** — Etherscan API key, Esplora endpoint, TronGrid API key
+1. **Provider credentials** — Etherscan API key, TronGrid API key (Esplora is now live validated)
 2. **Address-label dataset** — Requires governance approval before operational use
 3. **Ground-truth corpus** — No independent evaluation dataset available
 
