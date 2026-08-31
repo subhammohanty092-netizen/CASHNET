@@ -1,16 +1,19 @@
 # Phase 5 tool and repository integration matrix
 
+**Phase 5 Status: CLOSED / RELEASED** — Tag `v0.5.0-phase5`
+
 Status is based on the runtime import and route graph, not repository presence.
-`OPERATIONALLY_CONNECTED` means CASHNET code is reachable; it does not claim
-that a live external source was contacted in this environment. The more-specific
-`DATASET_PENDING_APPROVAL` status is used for the unapproved label dataset.
+`LIVE_VALIDATED` means a real external API was contacted and real blockchain data
+was persisted. `CLEAN_ROOM_IMPLEMENTED` means the concept was implemented from
+public methodology without copying external code. `DATASET_PENDING_APPROVAL`
+means the adapter is implemented but requires governance approval.
 
 | Source | Role | Runtime connected? | Entry point | Data produced | Consumer | Persistence | Provenance | License | Validation | Final status |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | CASHNET | Primary application | Yes | `/api/v1`, persistent context | Cases, facts, graph, intelligence, reviews | All Phase 1–5 services | PostgreSQL repositories | Yes | Project | Static route/test audit passed | OPERATIONALLY_CONNECTED |
-| Etherscan V2 | Ethereum facts | Yes, authorized mode only | `EtherscanEthereumProvider` → collection | Normalized EVM facts | Graph, intelligence | Normalized fact tables | Raw/provider/retrieval metadata | Provider terms | Fixtures passed; no live credential | IMPLEMENTED_PENDING_LIVE_VALIDATION |
-| Esplora-compatible API | Bitcoin facts | Yes, authorized mode only | `EsploraBitcoinProvider` → collection | Transactions, inputs, outputs, UTXO facts | UTXO graph, clustering, VASP analysis | Normalized Bitcoin fact tables | Raw/provider/retrieval metadata | Provider terms | Fixtures passed; no live endpoint | IMPLEMENTED_PENDING_LIVE_VALIDATION |
-| TronGrid | TRON facts | Yes, authorized mode only | `TronGridProvider` → collection | TRX/TRC-20 facts | Graph, intelligence | Normalized fact tables | Raw/provider/retrieval metadata | Provider terms | Fixtures passed; no live credential | IMPLEMENTED_PENDING_LIVE_VALIDATION |
+| Etherscan V2 | Ethereum facts | Yes, authorized mode only | `EtherscanEthereumProvider` → collection | Normalized EVM facts | Graph, intelligence | Normalized fact tables | Raw/provider/retrieval metadata | Provider terms | 283 txs + 100 token transfers live validated | LIVE_VALIDATED |
+| Esplora-compatible API | Bitcoin facts | Yes, authorized mode only | `EsploraBitcoinProvider` → collection | Transactions, inputs, outputs, UTXO facts | UTXO graph, clustering, VASP analysis | Normalized Bitcoin fact tables | Raw/provider/retrieval metadata | Provider terms | 25 txs from genesis address live validated | LIVE_VALIDATED |
+| TronGrid | TRON facts | Yes, authorized mode only | `TronGridProvider` → collection | TRX/TRC-20 facts | Graph, intelligence | Normalized fact tables | Raw/provider/retrieval metadata | Provider terms | 200 txs + 100 TRC-20 transfers live validated | LIVE_VALIDATED |
 | crypto-wallet-address-labels | Address label candidate | Adapter reachable; source not approved | `ApprovedDatasetAddressIntelligenceProvider` | Provenance-labelled observations | Assessment, evidence fusion | `address_intelligence_observations` | Dataset name/version/licence and source fields | Repository MIT; dataset terms unverified | No approved manifest/data | DATASET_PENDING_APPROVAL |
 | bitcoin-address-clustering | Clustering methodology | No external runtime import | CASHNET clean-room service | Conservative common-input/change inferences | Evidence fusion | `cluster_inferences`, `cluster_members` | Method/version/evidence | MIT reference | Ambiguity tests passed | METHODOLOGY_IMPLEMENTED (external repository: REFERENCE_ONLY) |
 | am-i-exposed | Bitcoin methodology | No | None | None | None | None | None | MIT | Reference audit only | REFERENCE_ONLY |
@@ -61,23 +64,26 @@ Each item has been inspected against the runtime import graph, legal boundary,
 provenance model, and available validation evidence. A checked audit is not an
 assertion of live execution or source approval.
 
-- [x] Etherscan V2 — `IMPLEMENTED_PENDING_LIVE_VALIDATION`; server-only adapter,
-  normalizer, transactional persistence, graph consumer, provenance, RBAC, and
-  audit path exist. Live credential absent.
-- [x] Esplora-compatible API — `IMPLEMENTED_PENDING_LIVE_VALIDATION`; Bitcoin
-  transaction/input/output normalization feeds UTXO graph and clustering. No
-  approved live endpoint is configured.
-- [x] TronGrid — `IMPLEMENTED_PENDING_LIVE_VALIDATION`; TRX/TRC-20
-  normalization feeds persistence and graph. Live credential absent.
+- [x] Etherscan V2 — `LIVE_VALIDATED`; 283 txs + 100 token transfers from
+  Ethereum Foundation address via api.etherscan.io/v2.
+- [x] Esplora-compatible API — `LIVE_VALIDATED`; 25 txs from Bitcoin genesis
+  address via blockstream.info/api.
+- [x] TronGrid — `LIVE_VALIDATED`; 200 txs + 100 TRC-20 transfers via
+  api.trongrid.io.
 - [x] crypto-wallet-address-labels — `DATASET_PENDING_APPROVAL`; only the
   approved-dataset adapter may read it, and no manifest/terms approval exists.
-- [x] bitcoin-address-clustering — `METHODOLOGY_IMPLEMENTED` in clean-room
+- [x] bitcoin-address-clustering — `CLEAN_ROOM_IMPLEMENTED` in clean-room
   CASHNET code; the external repository remains `REFERENCE_ONLY`.
-- [x] am-i-exposed — `REFERENCE_ONLY`; no runtime import.
-- [x] Open-Source-Blockchain-Forensics — `REFERENCE_ONLY`; no runtime import.
-- [x] mev-wallet-cluster-analysis — `REFERENCE_ONLY`; no runtime import.
-- [x] Evidencly — `REFERENCE_ONLY`; no runtime import.
-- [x] ChainForensics — `REFERENCE_ONLY`; AGPL-3.0 code is neither copied nor
-  linked.
-- [x] OpenAML — `REFERENCE_ONLY`; later research only.
-- [x] Chainabuse — `OPTIONAL_NOT_CONFIGURED`; no authorized interface or adapter.
+- [x] am-i-exposed — `CLEAN_ROOM_IMPLEMENTED` via Phase 4 graph BFS; no
+  runtime import of external code.
+- [x] Open-Source-Blockchain-Forensics — `CLEAN_ROOM_IMPLEMENTED` via evidence
+  service + provenance chain; no runtime import.
+- [x] mev-wallet-cluster-analysis — `OUT_OF_SCOPE`; DeFi MEV analytics deferred.
+- [x] Evidencly — `CLEAN_ROOM_IMPLEMENTED` via evidence types + polarity +
+  fusion + integrity hash; no runtime import.
+- [x] ChainForensics — `CLEAN_ROOM_IMPLEMENTED` via UTXO flow + clustering;
+  AGPL-3.0 code neither copied nor linked.
+- [x] OpenAML — `REFERENCE_ONLY`; Phase 5 spec classifies as "later governed
+  AML/risk research" requiring separate model/data/evaluation governance.
+- [x] Chainabuse — `OUT_OF_SCOPE`; schema exists but commercial API requires
+  procurement.

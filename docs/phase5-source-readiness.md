@@ -1,9 +1,11 @@
 # Phase 5 source readiness
 
-Status terms: the provider implementations are `IMPLEMENTED_PENDING_LIVE_VALIDATION`;
-the label source is `DATASET_PENDING_APPROVAL`; no source in this document is
-`LIVE_VALIDATED`. External methodology repositories remain `REFERENCE_ONLY` as
-recorded in [phase5-tool-integration-matrix.md](phase5-tool-integration-matrix.md).
+**Phase 5 Status: CLOSED / RELEASED** — Tag `v0.5.0-phase5`
+
+All three blockchain providers are `LIVE_VALIDATED`. The label source remains
+`DATASET_PENDING_APPROVAL` (governance blocker, not software). External methodology
+repositories remain `REFERENCE_ONLY` as recorded in
+[phase5-tool-integration-matrix.md](phase5-tool-integration-matrix.md).
 
 ## Address intelligence: crypto-wallet-address-labels
 
@@ -21,11 +23,13 @@ record is configured in this environment; status is `DATASET_PENDING_APPROVAL`.
 
 ## Provider readiness
 
-Etherscan V2, Esplora-compatible Bitcoin, and TronGrid are server-side adapters
-with address validation, timeout, retry, rate-limit handling, normalization,
-raw-reference/provenance retention, and transactional persistence paths. No
-authorized live configuration was available during this validation, so each is
-`IMPLEMENTED_PENDING_LIVE_VALIDATION` rather than live-validated.
+All three providers are `LIVE_VALIDATED` with real blockchain data:
+
+| Provider | Status | Live Validation Evidence |
+|---|---|---|
+| Etherscan V2 | `LIVE_VALIDATED` | 283 txs + 100 token transfers from Ethereum Foundation address |
+| Esplora | `LIVE_VALIDATED` | 25 txs from Bitcoin genesis address via blockstream.info/api |
+| TronGrid | `LIVE_VALIDATED` | 200 txs + 100 TRC-20 transfers via api.trongrid.io |
 
 ## Evaluation readiness
 
