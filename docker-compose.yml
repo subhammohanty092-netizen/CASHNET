@@ -1,0 +1,57 @@
+# CASHNET — Development/Staging Docker Compose
+# Production target remains deployment-provider-neutral.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: cashnet
+      POSTGRES_USER: cashnet
+      POSTGRES_PASSWORD: cashnet_dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cashnet"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    command: >
+      postgres
+        -c statement_timeout=30s
+        -c idle_in_transaction_session_timeout=60s
+        -c log_min_duration_statement=1000
+        -c max_connections=50
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://cashnet:cashnet_dev_password@postgres:5432/cashnet?sslmode=disable
+      CASHNET_DATA_MODE: authorized
+      CASHNET_DEV_AUTH_ENABLED: "true"
+      CASHNET_PROVIDER_TIMEOUT_MS: "10000"
+      CASHNET_PROVIDER_MAX_RETRIES: "2"
+      # Provider API keys — set in .env file (gitignored)
+      ETHERSCAN_API_KEY: ${ETHERSCAN_API_KEY:-}
+      TRONGRID_API_KEY: ${TRONGRID_API_KEY:-}
+      BSCSCAN_API_KEY: ${BSCSCAN_API_KEY:-}
+      POLYGONSCAN_API_KEY: ${POLYGONSCAN_API_KEY:-}
+      SOLANA_RPC_URL: ${SOLANA_RPC_URL:-}
+      SOLANA_API_KEY: ${SOLANA_API_KEY:-}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 15s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+
+volumes:
+  pgdata:
