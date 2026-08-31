@@ -94,34 +94,19 @@ export class JWTAuthenticator {
       throw new ProviderFailureError(`Unsupported JWT algorithm: ${header.alg}. Only RS256 and ES256 are supported.`);
     }
 
-    // JWKS signature verification would use crypto.subtle.verify() in production.
-    // The JWKS key retrieval and signature verification infrastructure is defined
-    // but actual cryptographic verification requires the Web Crypto API and the
-    // specific key import logic which depends on the runtime (Node.js SubtleCrypto).
-    //
-    // For production deployment:
-    // 1. Fetch JWKS from this.config.jwksUri
-    // 2. Find key matching header.kid
-    // 3. Import key via crypto.subtle.importKey()
-    // 4. Verify signature via crypto.subtle.verify()
-    //
-    // This is implemented as a validation contract; the cryptographic verification
-    // is a deployment concern that integrates with the specific key format.
     await this.ensureJWKSCached();
-
-    if (header.kid) {
-      const matchingKey = this.jwksCache?.keys.find((k: JWK) => k.kid === header.kid);
-      if (!matchingKey) {
-        // Refresh cache and retry
-        this.jwksCache = null;
-        await this.ensureJWKSCached();
-        const refreshedCache = this.jwksCache as { keys: JWK[]; cachedAt: number } | null;
-        const retryKey = refreshedCache?.keys.find((k: JWK) => k.kid === header.kid);
-        if (!retryKey) {
-          throw new ProviderFailureError(`No JWKS key found for kid="${header.kid}" after cache refresh.`);
-        }
-      }
+    if (!header.kid) throw new ProviderFailureError("JWT missing kid header.");
+    let key: JWK | undefined = this.jwksCache?.keys.find((candidate: JWK) => candidate.kid === header.kid);
+    if (!key) {
+      this.jwksCache = null;
+      await this.ensureJWKSCached();
+      const refreshed = this.jwksCache as { keys: JWK[]; cachedAt: number } | null;
+      key = refreshed?.keys.find((candidate: JWK) => candidate.kid === header.kid);
     }
+    if (!key) throw new ProviderFailureError(`No JWKS key found for kid="${header.kid}" after cache refresh.`);
+    if (key.use && key.use !== "sig") throw new ProviderFailureError("JWT JWKS key is not designated for signatures.");
+    if (key.alg && key.alg !== header.alg) throw new ProviderFailureError("JWT algorithm does not match JWKS key algorithm.");
+    await this.verifySignature(header.alg as "RS256" | "ES256", key, `${parts[0]}.${parts[1]}`, parts[2]);
 
     // Extract subject
     const subject = payload.sub;
@@ -157,6 +142,31 @@ export class JWTAuthenticator {
       if (error instanceof ProviderFailureError || error instanceof UnavailableServiceError) throw error;
       throw new UnavailableServiceError("Failed to fetch JWKS endpoint.");
     }
+  }
+
+  private async verifySignature(algorithm: "RS256" | "ES256", jwk: JWK, signingInput: string, encodedSignature: string): Promise<void> {
+    const subtle = globalThis.crypto?.subtle;
+    if (!subtle) throw new UnavailableServiceError("Web Crypto is unavailable for JWT signature verification.");
+    const importAlgorithm = algorithm === "RS256"
+      ? { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }
+      : { name: "ECDSA", namedCurve: "P-256" };
+    let key: CryptoKey;
+    try {
+      key = await subtle.importKey("jwk", jwk as never, importAlgorithm, false, ["verify"]);
+    } catch {
+      throw new ProviderFailureError("JWT JWKS key could not be imported for signature verification.");
+    }
+    let verified = false;
+    try {
+      const signature = Buffer.from(encodedSignature, "base64url");
+      const input = new TextEncoder().encode(signingInput);
+      verified = algorithm === "RS256"
+        ? await subtle.verify({ name: "RSASSA-PKCS1-v1_5" }, key, signature, input)
+        : await subtle.verify({ name: "ECDSA", hash: "SHA-256" }, key, signature, input);
+    } catch {
+      verified = false;
+    }
+    if (!verified) throw new ProviderFailureError("JWT signature verification failed.");
   }
 
   private decodeBase64Url<T>(value: string): T {

@@ -1,4 +1,4 @@
-import { ProviderFailureError, RateLimitError, TimeoutError, UnavailableServiceError } from "../../errors/app-error";
+import { ProviderFailureError, RateLimitError, UnavailableServiceError } from "../../errors/app-error";
 import type { CashnetConfig } from "../../config";
 import { ProviderHttpClient } from "./http-client";
 import { solanaWallet, solanaTransaction, solanaTokenTransfer } from "./solana-normalizer";
@@ -15,8 +15,7 @@ import type { TokenTransfer, Wallet } from "../../schemas/models";
  * - Transactions contain instructions (not input data like EVM)
  * - SPL tokens are separate from native SOL transfers
  *
- * Uses public RPC by default. An indexed provider (Helius/QuickNode) can be
- * configured via SOLANA_RPC_URL for enhanced historical queries.
+ * Requires an explicitly approved RPC endpoint via SOLANA_RPC_URL.
  */
 
 type JsonRpcResponse = { jsonrpc: string; id: number; result?: unknown; error?: { code: number; message: string } };
@@ -26,19 +25,18 @@ type ParsedInstruction = { program?: string; programId?: string; parsed?: { type
 type ParsedTransactionMeta = { err: unknown; fee: number; preBalances: number[]; postBalances: number[]; preTokenBalances?: unknown[]; postTokenBalances?: unknown[]; innerInstructions?: { index: number; instructions: ParsedInstruction[] }[]; logMessages?: string[] };
 type ParsedTransaction = { signatures: string[]; message: { accountKeys: { pubkey: string; signer: boolean; writable: boolean }[]; instructions: ParsedInstruction[]; recentBlockhash: string } };
 
-const DEFAULT_SOLANA_RPC = "https://api.mainnet-beta.solana.com";
 const MAX_SIGNATURES = 100;
 const solanaDelay = () => new Promise<void>((r) => setTimeout(r, 500));
 
 export class SolanaRpcProvider implements BlockchainFactProvider {
   readonly name = "solana-rpc";
   readonly chain = "SOLANA" as const;
-  private readonly rpcUrl: string;
+  private readonly rpcUrl: string | undefined;
   private readonly client: ProviderHttpClient;
   private requestId = 0;
 
   constructor(private readonly config: CashnetConfig, fetcher?: typeof fetch) {
-    this.rpcUrl = config.providers.solana.rpcUrl ?? DEFAULT_SOLANA_RPC;
+    this.rpcUrl = config.providers.solana.rpcUrl;
     this.client = new ProviderHttpClient(config.providerRequest, fetcher);
   }
 
@@ -123,22 +121,16 @@ export class SolanaRpcProvider implements BlockchainFactProvider {
   }
 
   private async rpcCall<T>(method: string, params: unknown[]): Promise<T | null> {
+    const rpcUrl = this.rpcUrl;
+    if (!rpcUrl) throw new UnavailableServiceError("Solana RPC is not configured. Set SOLANA_RPC_URL in the server environment.");
     this.requestId += 1;
     const body = JSON.stringify({ jsonrpc: "2.0", id: this.requestId, method, params });
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     const apiKey = process.env.SOLANA_API_KEY;
     if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
 
-    // Use raw fetch via the client's underlying mechanism — we need POST
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.config.providerRequest.timeoutMs);
     try {
-      const fetcher = (globalThis as Record<string, unknown>).fetch as typeof fetch;
-      const response = await fetcher(this.rpcUrl, { method: "POST", headers, body, signal: controller.signal });
-      if (response.status === 429) throw new RateLimitError("Solana RPC rate limit reached.");
-      if (response.status >= 500) throw new UnavailableServiceError("Solana RPC is temporarily unavailable.");
-      if (!response.ok) throw new ProviderFailureError(`Solana RPC returned HTTP ${response.status}.`);
-      const json = await response.json() as JsonRpcResponse;
+      const json = await this.client.postJson(rpcUrl, JSON.parse(body), headers) as JsonRpcResponse;
       if (json.error) {
         if (json.error.code === -32429 || json.error.message?.toLowerCase().includes("rate")) {
           throw new RateLimitError("Solana RPC rate limit reached.");
@@ -148,8 +140,7 @@ export class SolanaRpcProvider implements BlockchainFactProvider {
       return (json.result as T) ?? null;
     } catch (error) {
       if (error instanceof RateLimitError || error instanceof ProviderFailureError || error instanceof UnavailableServiceError) throw error;
-      if (error instanceof Error && error.name === "AbortError") throw new TimeoutError();
       throw new UnavailableServiceError("Solana RPC network request failed.");
-    } finally { clearTimeout(timer); }
+    }
   }
 }

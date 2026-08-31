@@ -1,6 +1,6 @@
 import { getDatabase } from "@workspace/db";
 import { CaseAuthorizationService } from "../auth/case-authorization-service";
-import { DevelopmentActorAuthenticator } from "../auth/actor-context";
+import { ApplicationAuthenticator } from "./auth/application-authenticator";
 import { PostgresRepositories } from "../repositories/postgres-repositories";
 import { CaseService } from "./cases/case-service";
 import { EvidenceService } from "./evidence/evidence-service";
@@ -14,6 +14,7 @@ import { ApprovedDatasetAddressIntelligenceProvider } from "./intelligence/appro
 import { AddressIntelligenceService } from "./intelligence/address-intelligence-service";
 import { BitcoinClusterInferenceService } from "./intelligence/bitcoin-cluster-inference-service";
 import { VaspCandidateService } from "./intelligence/vasp-candidate-service";
+import { Phase6AnalysisService } from "./phase6/phase6-analysis-service";
 
 export function getPersistentContext() {
   const repositories = new PostgresRepositories(getDatabase().db);
@@ -21,7 +22,9 @@ export function getPersistentContext() {
   const authorization = new CaseAuthorizationService(context.cases, context.audit);
   const providers = new ProviderRouter(config);
   return {
-    authenticate: new DevelopmentActorAuthenticator(context.users),
+    // ApplicationAuthenticator selects DevelopmentActorAuthenticator only outside
+    // production; production requires the cryptographically verified JWT path.
+    authenticate: new ApplicationAuthenticator(context.users),
     cases: new CaseService(context, repositories, authorization),
     investigations: new PersistentInvestigationService(context, repositories, authorization),
     collection: new BlockchainCollectionService(context, repositories, authorization, providers),
@@ -31,6 +34,7 @@ export function getPersistentContext() {
     addressIntelligence: new AddressIntelligenceService(context, repositories, authorization, new ApprovedDatasetAddressIntelligenceProvider(config)),
     bitcoinClusters: new BitcoinClusterInferenceService(context, repositories, authorization),
     vaspCandidates: new VaspCandidateService(context, repositories, authorization),
+    phase6: new Phase6AnalysisService(context, repositories, authorization),
     authorization,
     audit: context.audit,
   };

@@ -23,6 +23,8 @@ const EnvironmentSchema = z.object({
   CASHNET_LABEL_DATASET_NAME: z.string().min(1).optional(),
   CASHNET_LABEL_DATASET_VERSION: z.string().min(1).optional(),
   CASHNET_LABEL_DATASET_LICENSE: z.string().min(1).optional(),
+  CASHNET_CORS_ALLOWED_ORIGINS: z.string().optional(),
+  CASHNET_RATE_LIMIT_MAX_REQUESTS: z.string().regex(/^\d+$/).optional(),
 });
 
 export type CashnetConfig = {
@@ -42,6 +44,7 @@ export type CashnetConfig = {
   };
   providerRequest: { timeoutMs: number; maxRetries: number };
   intelligence: { approvedDataset?: { path: string; name: string; version: string; license: string } };
+  security: { allowedOrigins: string[]; rateLimitMaxRequests: number };
 };
 
 export function createConfig(environment: NodeJS.ProcessEnv = process.env): CashnetConfig {
@@ -63,10 +66,11 @@ export function createConfig(environment: NodeJS.ProcessEnv = process.env): Cash
       trongrid: { configured: Boolean(parsed.TRONGRID_API_KEY), baseUrl: parsed.TRONGRID_BASE_URL ?? "https://api.trongrid.io" },
       bscscan: { configured: Boolean(parsed.BSCSCAN_API_KEY) },
       polygonscan: { configured: Boolean(parsed.POLYGONSCAN_API_KEY) },
-      solana: { rpcUrl: parsed.SOLANA_RPC_URL, configured: true },
+      solana: { rpcUrl: parsed.SOLANA_RPC_URL, configured: Boolean(parsed.SOLANA_RPC_URL) },
     },
     providerRequest: { timeoutMs: Number(parsed.CASHNET_PROVIDER_TIMEOUT_MS ?? "10000"), maxRetries: Number(parsed.CASHNET_PROVIDER_MAX_RETRIES ?? "2") },
     intelligence: { approvedDataset },
+    security: { allowedOrigins: (parsed.CASHNET_CORS_ALLOWED_ORIGINS ?? (runtimeEnvironment === "production" ? "" : "http://localhost:5173")).split(",").map((value) => value.trim()).filter(Boolean), rateLimitMaxRequests: Number(parsed.CASHNET_RATE_LIMIT_MAX_REQUESTS ?? "120") },
   };
 }
 

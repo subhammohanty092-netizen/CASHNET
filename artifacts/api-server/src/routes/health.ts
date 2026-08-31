@@ -1,5 +1,7 @@
 import { Router, type IRouter } from "express";
 import { HealthCheckResponse } from "@workspace/api-zod";
+import { getDatabase } from "@workspace/db";
+import { renderMetrics } from "../observability/metrics";
 
 const router: IRouter = Router();
 
@@ -9,17 +11,24 @@ router.get("/healthz", (_req, res) => {
 });
 
 router.get("/readyz", async (_req, res) => {
-  // Readiness probe: checks if the service can accept traffic
-  // In production with DATABASE_URL, this would verify DB connectivity
   const checks: Record<string, string> = { process: "ok" };
   if (process.env.DATABASE_URL) {
-    // DB connectivity is validated at startup via migration runner;
-    // readiness probe confirms the process is ready to serve
-    checks.database = "configured";
+    try {
+      await getDatabase().db.execute("select 1");
+      checks.database = "ok";
+    } catch {
+      checks.database = "unavailable";
+      res.status(503).json({ status: "not_ready", checks });
+      return;
+    }
   } else {
     checks.database = "not_configured";
   }
   res.json({ status: "ok", checks });
+});
+
+router.get("/metrics", (_req, res) => {
+  res.type("text/plain; version=0.0.4").send(renderMetrics());
 });
 
 export default router;

@@ -4,11 +4,17 @@ export class ProviderHttpClient {
   constructor(private readonly options: { timeoutMs: number; maxRetries: number }, private readonly fetcher: typeof fetch = fetch) {}
 
   async getJson(url: string, headers: Record<string, string> = {}): Promise<unknown> {
+    return this.json(url, { headers });
+  }
+  async postJson(url: string, body: unknown, headers: Record<string, string> = {}): Promise<unknown> {
+    return this.json(url, { method: "POST", headers: { "Content-Type": "application/json", ...headers }, body: JSON.stringify(body) });
+  }
+  private async json(url: string, init: RequestInit): Promise<unknown> {
     for (let attempt = 0; attempt <= this.options.maxRetries; attempt += 1) {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), this.options.timeoutMs);
       try {
-        const response = await this.fetcher(url, { headers, signal: controller.signal });
+        const response = await this.fetcher(url, { ...init, signal: controller.signal });
         if (response.status === 429) {
           if (attempt < this.options.maxRetries) { await delay(backoff(attempt)); continue; }
           throw new RateLimitError("Provider rate limit reached.");

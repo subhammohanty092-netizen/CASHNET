@@ -13,6 +13,7 @@ export function requestIdMiddleware(): RequestHandler {
   return (req: Request, _res: Response, next: NextFunction) => {
     const requestId = req.headers["x-request-id"] as string ?? crypto.randomUUID();
     (req as unknown as Record<string, unknown>).requestId = requestId;
+    _res.setHeader("X-Request-ID", requestId);
     next();
   };
 }
@@ -26,7 +27,7 @@ export function secureHeadersMiddleware(): RequestHandler {
     res.setHeader("X-XSS-Protection", "0");
     res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
     res.setHeader("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'");
-    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+    if (process.env.NODE_ENV === "production") res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
     res.setHeader("Cache-Control", "no-store");
     res.setHeader("Pragma", "no-cache");
     next();

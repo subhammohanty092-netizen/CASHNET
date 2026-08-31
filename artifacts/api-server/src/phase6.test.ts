@@ -10,6 +10,8 @@ import { computeBinaryMetrics, computeCalibration, analyzeFalsePositives } from 
 import { redactSecrets } from "./middleware/security";
 import type { GraphRelationshipRecord } from "./repositories/types";
 import type { RiskIndicatorResult } from "./services/risk/aml-risk-indicator-service";
+import { generateKeyPairSync, sign } from "node:crypto";
+import { JWTAuthenticator } from "./services/auth/jwt-authenticator";
 
 // ── Test helpers ────────────────────────────────────────────────────────────
 
@@ -194,5 +196,23 @@ test("Phase 6.1 provider router dispatches all 6 chains", async () => {
     const provider = router.forChain(chain);
     assert.ok(provider, `Provider for ${chain} should exist`);
     assert.equal(provider.chain, chain);
+  }
+});
+
+test("Phase 6.6 JWT authenticator rejects a token with valid claims but invalid signature", async () => {
+  const { privateKey, publicKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+  const jwk = publicKey.export({ format: "jwk" });
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({ keys: [{ ...jwk, kid: "test-key", use: "sig", alg: "RS256" }] }), { status: 200 });
+  try {
+    const auth = new JWTAuthenticator({ issuerAllowlist: ["https://issuer.example"], audience: "cashnet-api", jwksUri: "https://issuer.example/jwks", clockSkewSeconds: 0, jwksCacheTtlMs: 60_000, roleClaimPath: "roles" });
+    const header = Buffer.from(JSON.stringify({ alg: "RS256", kid: "test-key", typ: "JWT" })).toString("base64url");
+    const payload = Buffer.from(JSON.stringify({ iss: "https://issuer.example", aud: "cashnet-api", sub: "demo.investigator", exp: Math.floor(Date.now() / 1000) + 60, roles: ["INVESTIGATOR"] })).toString("base64url");
+    const signature = sign("RSA-SHA256", Buffer.from(`${header}.${payload}`), privateKey).toString("base64url");
+    assert.equal((await auth.authenticate(`${header}.${payload}.${signature}`)).subject, "demo.investigator");
+    const invalidSignature = `${signature[0] === "A" ? "B" : "A"}${signature.slice(1)}`;
+    await assert.rejects(auth.authenticate(`${header}.${payload}.${invalidSignature}`), /signature verification failed/);
+  } finally {
+    globalThis.fetch = originalFetch;
   }
 });

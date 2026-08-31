@@ -7,7 +7,7 @@ services:
     environment:
       POSTGRES_DB: cashnet
       POSTGRES_USER: cashnet
-      POSTGRES_PASSWORD: cashnet_dev_password
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in an untracked .env file}
     ports:
       - "5432:5432"
     volumes:
@@ -34,7 +34,8 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgres://cashnet:cashnet_dev_password@postgres:5432/cashnet?sslmode=disable
+      DATABASE_URL: postgresql://cashnet:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in an untracked .env file}@postgres:5432/cashnet?sslmode=disable
+      PORT: "3000"
       CASHNET_DATA_MODE: authorized
       CASHNET_DEV_AUTH_ENABLED: "true"
       CASHNET_PROVIDER_TIMEOUT_MS: "10000"
@@ -47,7 +48,7 @@ services:
       SOLANA_RPC_URL: ${SOLANA_RPC_URL:-}
       SOLANA_API_KEY: ${SOLANA_API_KEY:-}
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/readyz"]
       interval: 15s
       timeout: 5s
       start_period: 15s
