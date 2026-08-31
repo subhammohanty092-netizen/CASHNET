@@ -54,3 +54,4 @@ Thumbs.db
 .env.*
 !.env.example
 references/
+opencode.json

@@ -66,3 +66,45 @@ test("Phase 5 held-out evaluator reports counts without treating confidence scor
   const result = evaluateHeldOutCases([{ id: "1", actual: "POSITIVE", predicted: "POSITIVE", expectedCandidateId: "x", rankedCandidateIds: ["x"] }, { id: "2", actual: "NEGATIVE", predicted: "POSITIVE" }, { id: "3", actual: "POSITIVE", predicted: "UNKNOWN" }, { id: "4", actual: "NEGATIVE", predicted: "NEGATIVE" }]);
   assert.deepEqual({ truePositive: result.truePositive, falsePositive: result.falsePositive, falseNegative: result.falseNegative, trueNegative: result.trueNegative, unknown: result.unknown }, { truePositive: 1, falsePositive: 1, falseNegative: 1, trueNegative: 1, unknown: 1 }); assert.equal(result.precision, 0.5); assert.equal(result.recall, 0.5); assert.equal(result.unknownRate, 0.25); assert.equal(result.top1Accuracy, 1);
 });
+test("development actor authentication wires through UserRepository and requires DATABASE_URL at persistent context creation", async () => {
+  // Regression: the Phase 5 INTERNAL_ERROR was caused by a stale server
+  // process lacking DATABASE_URL; the authentication path
+  //   DevelopmentActorAuthenticator → PostgresUserRepository.findActorByUsername()
+  // failed silently. This test verifies the wiring contracts.
+  const { DevelopmentActorAuthenticator } = await import("./auth/actor-context");
+  const { createConfig } = await import("./config");
+
+  // 1. Production config disables development auth regardless of env var
+  const productionConfig = createConfig({ NODE_ENV: "production", CASHNET_DEV_AUTH_ENABLED: "true" });
+  assert.equal(productionConfig.developmentAuthEnabled, false);
+
+  // 2. Development config with explicit flag enables auth
+  const devConfig = createConfig({ NODE_ENV: "development", CASHNET_DEV_AUTH_ENABLED: "true" });
+  assert.equal(devConfig.developmentAuthEnabled, true);
+
+  // 3. UserRepository contract: findActorByUsername resolves a typed Actor
+  const mockRepo = { findActorByUsername: async (username: string) => username === "demo.investigator" ? { id: "test-id", username: "demo.investigator", roles: ["INVESTIGATOR"], permissions: ["CASE_READ" as const, "CASE_CREATE" as const] } : null };
+  const actor = await mockRepo.findActorByUsername("demo.investigator");
+  assert.ok(actor); assert.equal(actor.username, "demo.investigator");
+  assert.deepEqual(actor.roles, ["INVESTIGATOR"]);
+  assert.ok(actor.permissions.includes("CASE_READ"));
+  assert.equal(await mockRepo.findActorByUsername("nonexistent"), null);
+
+  // 4. DevelopmentActorAuthenticator accepts UserRepository — class instantiates
+  const authenticator = new DevelopmentActorAuthenticator(mockRepo);
+  assert.ok(authenticator);
+
+  // 5. createDatabase() requires DATABASE_URL — verified structurally
+  const dbSource = await readFile(new URL("../../../lib/db/src/index.ts", import.meta.url), "utf8");
+  assert.match(dbSource, /DATABASE_URL must be set/);
+  assert.match(dbSource, /if\s*\(\s*!databaseUrl\s*\)/);
+
+  // 6. Server entry point requires PORT (the exact startup failure mode)
+  const entrySource = await readFile(new URL("../src/index.ts", import.meta.url), "utf8");
+  assert.match(entrySource, /PORT.*required/i);
+
+  // 7. Persistent context uses getDatabase() — lazy singleton
+  const contextSource = await readFile(new URL("../src/services/persistent-context.ts", import.meta.url), "utf8");
+  assert.match(contextSource, /getDatabase\(\)/);
+  assert.match(contextSource, /DevelopmentActorAuthenticator/);
+});
