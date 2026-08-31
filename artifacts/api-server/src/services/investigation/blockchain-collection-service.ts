@@ -18,7 +18,10 @@ export class BlockchainCollectionService {
     if (!await provider.validateAddress(investigation.walletAddress)) throw new ValidationFailureError("The investigation wallet address is invalid for its chain.");
     if (investigation.status === "AUTHORIZED") await this.transactions.transaction(async (repositories) => { await repositories.investigations.updateStatus(investigation.id, "RUNNING"); await repositories.audit.append({ caseId: investigation.caseId, actorId: actor.id, action: "INVESTIGATION_COLLECTION_STARTED", resourceType: "investigation", resourceId: investigation.id, requestId: requestId ?? null, result: "SUCCESS", metadata: { provider: provider.name, chain: investigation.chain } }); });
     try {
-      const [profile, transactions, tokenTransfers, internal] = await Promise.all([provider.getWalletProfile(investigation.walletAddress), provider.getTransactions(investigation.walletAddress), provider.getTokenTransfers(investigation.walletAddress), provider.getInternalTransactions(investigation.walletAddress)]);
+      const profile = await provider.getWalletProfile(investigation.walletAddress);
+      const transactions = await provider.getTransactions(investigation.walletAddress);
+      const tokenTransfers = await provider.getTokenTransfers(investigation.walletAddress);
+      const internal = await provider.getInternalTransactions(investigation.walletAddress);
       if (profile.status === "UNSUPPORTED_CAPABILITY" || !profile.data) throw new ValidationFailureError("The selected provider cannot retrieve a wallet profile.");
       const bundles: NormalizedTransactionBundle[] = [];
       if (transactions.status !== "UNSUPPORTED_CAPABILITY") bundles.push(...transactions.data);
