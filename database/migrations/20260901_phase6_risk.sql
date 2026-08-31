@@ -44,28 +44,35 @@ CREATE TABLE IF NOT EXISTS risk_analysis_runs (
 CREATE INDEX IF NOT EXISTS idx_risk_runs_lookup
   ON risk_analysis_runs (case_id, investigation_id, chain, lower(address));
 
--- Individual risk indicators (each indicator has a type, version, and evidence)
-CREATE TABLE IF NOT EXISTS risk_indicators (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  run_id UUID NOT NULL REFERENCES risk_analysis_runs(id) ON DELETE CASCADE,
-  case_id UUID NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
-  investigation_id UUID NOT NULL REFERENCES investigations(id) ON DELETE CASCADE,
-  chain TEXT NOT NULL,
-  address TEXT,
-  transaction_hash TEXT,
-  indicator_type TEXT NOT NULL,
-  rule_version TEXT NOT NULL,
-  severity TEXT NOT NULL CHECK (severity IN ('INFO', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL')),
-  score_contribution NUMERIC NOT NULL CHECK (score_contribution >= 0),
-  confidence TEXT NOT NULL CHECK (confidence IN ('LOW', 'MEDIUM', 'HIGH')),
-  description TEXT NOT NULL,
-  explanation TEXT NOT NULL,
-  observed_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
+-- Phase 1 already owns risk_indicators. Evolve that released table instead of
+-- attempting to create a second incompatible meaning for the same table.
+-- New columns remain nullable so legacy Phase 1 rows remain valid and intact.
+ALTER TABLE risk_indicators
+  ADD COLUMN IF NOT EXISTS run_id UUID REFERENCES risk_analysis_runs(id) ON DELETE CASCADE,
+  ADD COLUMN IF NOT EXISTS investigation_id UUID REFERENCES investigations(id) ON DELETE CASCADE,
+  ADD COLUMN IF NOT EXISTS chain TEXT,
+  ADD COLUMN IF NOT EXISTS address TEXT,
+  ADD COLUMN IF NOT EXISTS transaction_hash TEXT,
+  ADD COLUMN IF NOT EXISTS indicator_type TEXT,
+  ADD COLUMN IF NOT EXISTS category TEXT,
+  ADD COLUMN IF NOT EXISTS rule_version TEXT,
+  ADD COLUMN IF NOT EXISTS score_contribution NUMERIC,
+  ADD COLUMN IF NOT EXISTS score_semantics TEXT,
+  ADD COLUMN IF NOT EXISTS confidence_level TEXT,
+  ADD COLUMN IF NOT EXISTS observed_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS method TEXT,
+  ADD COLUMN IF NOT EXISTS method_version TEXT,
+  ADD COLUMN IF NOT EXISTS provenance JSONB;
+
+ALTER TABLE risk_indicators
+  DROP CONSTRAINT IF EXISTS risk_indicators_score_contribution_check;
+ALTER TABLE risk_indicators
+  ADD CONSTRAINT risk_indicators_score_contribution_check
+  CHECK (score_contribution IS NULL OR score_contribution >= 0);
 
 CREATE INDEX IF NOT EXISTS idx_risk_indicators_run
-  ON risk_indicators (run_id, severity, score_contribution DESC);
+  ON risk_indicators (run_id, severity, score_contribution DESC)
+  WHERE run_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_risk_indicators_case
   ON risk_indicators (case_id, investigation_id, indicator_type);
 

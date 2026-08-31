@@ -3,7 +3,10 @@ export type PermissionCode =
   | "INVESTIGATION_CREATE" | "INVESTIGATION_READ" | "INVESTIGATION_EXECUTE"
   | "EVIDENCE_CREATE" | "EVIDENCE_READ" | "EVIDENCE_EXPORT"
   | "REPORT_READ" | "REPORT_CREATE" | "REPORT_EXPORT" | "AUDIT_READ" | "USER_MANAGE" | "ROLE_MANAGE"
-  | "INTELLIGENCE_READ" | "INTELLIGENCE_EXECUTE" | "CLUSTER_ANALYZE" | "VASP_ANALYZE" | "VASP_REVIEW" | "EVIDENCE_REVIEW";
+  | "INTELLIGENCE_READ" | "INTELLIGENCE_EXECUTE" | "CLUSTER_ANALYZE" | "VASP_ANALYZE" | "VASP_REVIEW" | "EVIDENCE_REVIEW"
+  | "RISK_ANALYZE" | "RISK_READ" | "GRAPH_FEATURES" | "DEFI_ANALYZE"
+  | "REPORT_GENERATE" | "REPORT_EXPORT" | "AUDIT_EXPORT"
+  | "COLLECTION_BNB" | "COLLECTION_POLYGON" | "COLLECTION_SOLANA";
 
 export type Actor = { id: string; username: string; roles: string[]; permissions: PermissionCode[] };
 export type CaseStatus = "OPEN" | "IN_PROGRESS" | "ON_HOLD" | "CLOSED" | "ARCHIVED";
@@ -34,3 +37,14 @@ export type AttributionReviewDecision = "ACCEPTED" | "REJECTED" | "CONFIRMED";
 export type AttributionReviewRecord = { id: string; caseId: string; investigationId: string; candidateId: string; reviewerId: string; decision: AttributionReviewDecision; rationale: string | null; createdAt: string };
 export type AttributionReviewInput = { decision: AttributionReviewDecision; rationale: string | null };
 export type BitcoinTransactionRecord = { transactionHash: string; inputs: Array<{ address: string | null; value: string | null }>; outputs: Array<{ address: string | null; value: string }>; };
+export type RiskIndicatorPersistenceInput = { indicatorType: string; severity: "INFO" | "LOW" | "MEDIUM" | "HIGH" | "CRITICAL"; scoreContribution: number; confidence: "LOW" | "MEDIUM" | "HIGH"; description: string; explanation: string; ruleVersion: string; evidence: Array<{ evidenceType: string; subjectType: string; subjectId: string; value?: string; source?: string; sourceReference?: string; method: string; methodVersion: string }>; observedAt?: string };
+export type RiskAnalysisRunRecord = { id: string; caseId: string; investigationId: string; chain: string; address: string; method: string; methodVersion: string; status: "COMPLETED" | "FAILED" | "PARTIAL"; indicatorCount: number; totalRiskScore: number | null; createdAt: string };
+export type PersistedRiskIndicator = { id: string; runId: string; caseId: string; investigationId: string; chain: string; address: string | null; indicatorType: string; severity: string; scoreContribution: number; confidence: string; description: string; explanation: string; method: string; methodVersion: string; observedAt: string | null; createdAt: string };
+export type GraphFeaturePersistenceInput = { chain: string; address: string; featureType: string; value: number; method: string; methodVersion: string; scopeDescription: string; computedAt: string };
+export type PersistedGraphFeature = GraphFeaturePersistenceInput & { id: string; caseId: string; investigationId: string };
+export type CommunityPersistenceInput = { communityKey: string; members: string[]; memberCount: number; edgeCount: number; chains: string[]; confidence: "STRUCTURAL" | "INFERRED"; explanation: string; method: string; methodVersion: string };
+export type CommunityRunRecord = { id: string; caseId: string; investigationId: string; chain: string; totalNodes: number; totalEdges: number; communityCount: number; createdAt: string };
+export type DeFiInteractionPersistenceInput = { chain: string; transactionHash: string; protocolAddress: string; protocolName?: string; interactionType: "SWAP" | "LIQUIDITY_ADD" | "LIQUIDITY_REMOVE" | "BORROW" | "REPAY" | "FLASH_LOAN" | "BRIDGE" | "OTHER"; tokenIn?: string; amountIn?: string; tokenOut?: string; amountOut?: string; routerAddress?: string; method: string; methodVersion: string };
+export type MevCandidatePersistenceInput = { chain: string; mevType: "SANDWICH" | "ARBITRAGE" | "LIQUIDATION" | "OTHER"; confidenceLevel: "CANDIDATE" | "LIKELY" | "REVIEW_REQUIRED"; frontRunHash?: string; victimHash?: string; backRunHash?: string; poolAddress?: string; profitEstimate?: string; evidence: unknown[]; method: string; methodVersion: string };
+export type ForensicReportPersistenceInput = { title: string; reportType: "INVESTIGATION_SUMMARY" | "RISK_ASSESSMENT" | "GRAPH_ANALYSIS" | "FULL_FORENSIC"; content: Record<string, unknown>; methodVersions: Record<string, string> };
+export type ForensicReportRecord = ForensicReportPersistenceInput & { id: string; caseId: string; investigationId: string | null; generatedBy: string | null; createdAt: string };

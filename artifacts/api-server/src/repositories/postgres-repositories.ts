@@ -10,7 +10,8 @@ import type { WalletSubjectRepository } from "./wallet-subject-repository";
 import type { BlockchainRepository, PersistedBlockchainBundle } from "./blockchain-repository";
 import type { GraphRepository } from "./graph-repository";
 import type { IntelligenceRepository } from "./intelligence-repository";
-import type { Actor, AddressIntelligenceObservationInput, AddressIntelligenceObservationRecord, AttributionReviewInput, AttributionReviewRecord, AuditEventRecord, BitcoinTransactionRecord, CaseRecord, ClusterInferenceInput, ClusterInferenceRecord, ClusterMember, EvidenceRecord, GraphRelationshipInput, GraphRelationshipRecord, InvestigationRecord, ServiceAddressAssessmentInput, ServiceAddressAssessmentRecord, VaspCandidateInput, VaspCandidateRecord, WalletSubjectRecord } from "./types";
+import type { AnalyticsRepository } from "./analytics-repository";
+import type { Actor, AddressIntelligenceObservationInput, AddressIntelligenceObservationRecord, AttributionReviewInput, AttributionReviewRecord, AuditEventRecord, BitcoinTransactionRecord, CaseRecord, ClusterInferenceInput, ClusterInferenceRecord, ClusterMember, CommunityPersistenceInput, CommunityRunRecord, DeFiInteractionPersistenceInput, EvidenceRecord, ForensicReportPersistenceInput, ForensicReportRecord, GraphFeaturePersistenceInput, GraphRelationshipInput, GraphRelationshipRecord, InvestigationRecord, MevCandidatePersistenceInput, PersistedGraphFeature, PersistedRiskIndicator, RiskAnalysisRunRecord, RiskIndicatorPersistenceInput, ServiceAddressAssessmentInput, ServiceAddressAssessmentRecord, VaspCandidateInput, VaspCandidateRecord, WalletSubjectRecord } from "./types";
 import { extractRelationships } from "../services/graph/relationship-extractor";
 
 type Executor = Pick<CashnetDatabase, "execute">;
@@ -155,8 +156,9 @@ class PostgresGraphRepository implements GraphRepository {
   async upsertDerivedRelationships(caseId: string, relationships: GraphRelationshipInput[]) {
     for (const relationship of relationships) await this.db.execute(sql`insert into investigation_graph_relationships (case_id, chain, transaction_hash, from_address, to_address, relationship_type, asset, amount_numeric, token_contract, block_number, block_timestamp, execution_status, derivation_source_type, provider, source_reference, raw_reference, retrieved_at, method) values (${caseId}::uuid, ${relationship.chain}, ${relationship.transactionHash}, ${relationship.fromAddress}, ${relationship.toAddress}, ${relationship.relationshipType}, ${relationship.asset}, ${relationship.amount}::numeric, ${relationship.tokenContract}, ${relationship.blockNumber}::bigint, ${relationship.timestamp}::timestamptz, ${relationship.executionStatus}, ${relationship.derivationSourceType}, ${relationship.provider}, ${relationship.sourceReference}, ${relationship.rawReference}, ${relationship.retrievedAt}::timestamptz, ${relationship.method}) on conflict (case_id, chain, transaction_hash, lower(from_address), lower(to_address), relationship_type, asset, amount_numeric, coalesce(token_contract, '')) do update set retrieved_at = excluded.retrieved_at, execution_status = coalesce(excluded.execution_status, investigation_graph_relationships.execution_status)`);
   }
-  async listByCaseAndChain(caseId: string, chain: string) {
-    const result = await this.db.execute(sql`select * from investigation_graph_relationships where case_id = ${caseId}::uuid and chain = ${chain} order by block_timestamp desc nulls last, transaction_hash, id`);
+  async listByCaseAndChain(caseId: string, chain: string, limit = 10_000) {
+    const boundedLimit = Math.min(Math.max(limit, 1), 50_000);
+    const result = await this.db.execute(sql`select * from investigation_graph_relationships where case_id = ${caseId}::uuid and chain = ${chain} order by block_timestamp desc nulls last, transaction_hash, id limit ${boundedLimit}`);
     return result.rows.map((row) => graphRelationshipRecord(row as Record<string, unknown>));
   }
 }
@@ -221,6 +223,77 @@ class PostgresIntelligenceRepository implements IntelligenceRepository {
   }
 }
 
+function riskRunRecord(row: Record<string, unknown>): RiskAnalysisRunRecord {
+  return { id: text(row.id), caseId: text(row.case_id), investigationId: text(row.investigation_id), chain: text(row.chain), address: text(row.address), method: text(row.method), methodVersion: text(row.method_version), status: row.status as RiskAnalysisRunRecord["status"], indicatorCount: Number(row.indicator_count), totalRiskScore: row.total_risk_score == null ? null : Number(row.total_risk_score), createdAt: iso(row.created_at)! };
+}
+function persistedRiskIndicator(row: Record<string, unknown>): PersistedRiskIndicator {
+  return { id: text(row.id), runId: text(row.run_id), caseId: text(row.case_id), investigationId: text(row.investigation_id), chain: text(row.chain), address: row.address == null ? null : text(row.address), indicatorType: text(row.indicator_type), severity: text(row.severity), scoreContribution: Number(row.score_contribution), confidence: text(row.confidence_level), description: text(row.description), explanation: text(row.explanation), method: text(row.method), methodVersion: text(row.method_version), observedAt: iso(row.observed_at), createdAt: iso(row.created_at)! };
+}
+function persistedGraphFeature(row: Record<string, unknown>): PersistedGraphFeature {
+  return { id: text(row.id), caseId: text(row.case_id), investigationId: text(row.investigation_id), chain: text(row.chain), address: text(row.address), featureType: text(row.feature_type), value: Number(row.value), method: text(row.method), methodVersion: text(row.method_version), scopeDescription: row.scope_description == null ? "" : text(row.scope_description), computedAt: iso(row.computed_at)! };
+}
+function forensicReportRecord(row: Record<string, unknown>): ForensicReportRecord {
+  return { id: text(row.id), caseId: text(row.case_id), investigationId: row.investigation_id == null ? null : text(row.investigation_id), generatedBy: row.generated_by == null ? null : text(row.generated_by), title: text(row.title), reportType: row.report_type as ForensicReportRecord["reportType"], content: (row.content as Record<string, unknown>) ?? {}, methodVersions: (row.method_versions as Record<string, string>) ?? {}, createdAt: iso(row.created_at)! };
+}
+
+class PostgresAnalyticsRepository implements AnalyticsRepository {
+  constructor(private readonly db: Executor) {}
+
+  async persistRiskAnalysis(input: { caseId: string; investigationId: string; actorId: string; chain: string; address: string; method: string; methodVersion: string; status: "COMPLETED" | "FAILED" | "PARTIAL"; totalRiskScore: number; indicators: RiskIndicatorPersistenceInput[] }) {
+    const runResult = await this.db.execute(sql`insert into risk_analysis_runs (case_id, investigation_id, chain, address, method, method_version, status, indicator_count, total_risk_score, created_by, completed_at) values (${input.caseId}::uuid, ${input.investigationId}::uuid, ${input.chain}, ${input.address}, ${input.method}, ${input.methodVersion}, ${input.status}, ${input.indicators.length}, ${input.totalRiskScore}, ${input.actorId}::uuid, now()) returning *`);
+    const run = riskRunRecord(runResult.rows[0] as Record<string, unknown>);
+    const indicators: PersistedRiskIndicator[] = [];
+    for (const item of input.indicators) {
+      const confidence = item.confidence === "HIGH" ? 0.9 : item.confidence === "MEDIUM" ? 0.6 : 0.3;
+      const result = await this.db.execute(sql`insert into risk_indicators (run_id, case_id, investigation_id, chain, address, indicator_type, category, rule_version, severity, score_contribution, score_semantics, confidence_level, description, explanation, observed_at, method, method_version, provenance, name, confidence, source_type) values (${run.id}::uuid, ${input.caseId}::uuid, ${input.investigationId}::uuid, ${input.chain}, ${input.address}, ${item.indicatorType}, 'HEURISTIC_INDICATOR', ${item.ruleVersion}, ${item.severity}, ${item.scoreContribution}, 'HEURISTIC_SCORE_NOT_PROBABILITY', ${item.confidence}, ${item.description}, ${item.explanation}, ${item.observedAt ?? null}::timestamptz, ${input.method}, ${input.methodVersion}, ${JSON.stringify({ evidenceCount: item.evidence.length, source: "stored_graph_relationships" })}::jsonb, ${item.indicatorType}, ${confidence}, 'DERIVED') returning *`);
+      const row = result.rows[0] as Record<string, unknown>;
+      const indicatorId = text(row.id);
+      for (const evidence of item.evidence) await this.db.execute(sql`insert into risk_indicator_evidence (indicator_id, evidence_type, subject_type, subject_id, value, source, source_reference, method, method_version) values (${indicatorId}::uuid, ${evidence.evidenceType}, ${evidence.subjectType}, ${evidence.subjectId}, ${evidence.value ?? null}, ${evidence.source ?? null}, ${evidence.sourceReference ?? null}, ${evidence.method}, ${evidence.methodVersion})`);
+      indicators.push(persistedRiskIndicator(row));
+    }
+    return { run, indicators };
+  }
+
+  async listRiskIndicators(caseId: string, investigationId: string, limit: number) {
+    const result = await this.db.execute(sql`select * from risk_indicators where case_id = ${caseId}::uuid and investigation_id = ${investigationId}::uuid and run_id is not null order by created_at desc, id limit ${limit}`);
+    return result.rows.map((row) => persistedRiskIndicator(row as Record<string, unknown>));
+  }
+  async findRiskIndicator(caseId: string, investigationId: string, indicatorId: string) {
+    const result = await this.db.execute(sql`select * from risk_indicators where id = ${indicatorId}::uuid and case_id = ${caseId}::uuid and investigation_id = ${investigationId}::uuid and run_id is not null`);
+    return result.rows[0] ? persistedRiskIndicator(result.rows[0] as Record<string, unknown>) : null;
+  }
+  async upsertGraphFeatures(caseId: string, investigationId: string, values: GraphFeaturePersistenceInput[]) {
+    const output: PersistedGraphFeature[] = [];
+    for (const value of values) {
+      const result = await this.db.execute(sql`insert into graph_features (case_id, investigation_id, chain, address, feature_type, value, method, method_version, scope_description, computed_at) values (${caseId}::uuid, ${investigationId}::uuid, ${value.chain}, ${value.address}, ${value.featureType}, ${value.value}, ${value.method}, ${value.methodVersion}, ${value.scopeDescription}, ${value.computedAt}::timestamptz) on conflict (case_id, investigation_id, chain, lower(address), feature_type, method, method_version) do update set value = excluded.value, scope_description = excluded.scope_description, computed_at = excluded.computed_at returning *`);
+      output.push(persistedGraphFeature(result.rows[0] as Record<string, unknown>));
+    }
+    return output;
+  }
+  async persistCommunities(input: { caseId: string; investigationId: string; actorId: string; chain: string; maxNodes: number; maxEdges: number; maxRuntimeMs: number; totalNodes: number; totalEdges: number; communities: CommunityPersistenceInput[] }) {
+    const result = await this.db.execute(sql`insert into community_analysis_runs (case_id, investigation_id, chain, method, method_version, max_nodes, max_edges, max_runtime_ms, total_nodes, total_edges, community_count, created_by) values (${input.caseId}::uuid, ${input.investigationId}::uuid, ${input.chain}, 'cashnet-community-detection', '1.0.0', ${input.maxNodes}, ${input.maxEdges}, ${input.maxRuntimeMs}, ${input.totalNodes}, ${input.totalEdges}, ${input.communities.length}, ${input.actorId}::uuid) returning *`);
+    const run = result.rows[0] as Record<string, unknown>; const runId = text(run.id);
+    for (const item of input.communities) await this.db.execute(sql`insert into graph_communities (run_id, community_key, members, member_count, edge_count, chains, confidence, explanation, method, method_version) values (${runId}::uuid, ${item.communityKey}, ${JSON.stringify(item.members)}::jsonb, ${item.memberCount}, ${item.edgeCount}, ${item.chains}, ${item.confidence}, ${item.explanation}, ${item.method}, ${item.methodVersion})`);
+    return { id: runId, caseId: text(run.case_id), investigationId: text(run.investigation_id), chain: text(run.chain), totalNodes: Number(run.total_nodes), totalEdges: Number(run.total_edges), communityCount: Number(run.community_count), createdAt: iso(run.created_at)! } as CommunityRunRecord;
+  }
+  async persistDeFiInteractions(caseId: string, investigationId: string, values: DeFiInteractionPersistenceInput[]) {
+    for (const value of values) await this.db.execute(sql`insert into defi_protocol_interactions (case_id, investigation_id, chain, transaction_hash, protocol_name, protocol_address, interaction_type, token_in, amount_in, token_out, amount_out, router_address, method, method_version) values (${caseId}::uuid, ${investigationId}::uuid, ${value.chain}, ${value.transactionHash}, ${value.protocolName ?? null}, ${value.protocolAddress}, ${value.interactionType}, ${value.tokenIn ?? null}, ${value.amountIn ?? null}, ${value.tokenOut ?? null}, ${value.amountOut ?? null}, ${value.routerAddress ?? null}, ${value.method}, ${value.methodVersion})`);
+    return values.length;
+  }
+  async persistMevCandidates(caseId: string, investigationId: string, values: MevCandidatePersistenceInput[]) {
+    for (const value of values) await this.db.execute(sql`insert into mev_candidates (case_id, investigation_id, chain, mev_type, confidence_level, front_run_hash, victim_hash, back_run_hash, pool_address, profit_estimate, evidence, method, method_version) values (${caseId}::uuid, ${investigationId}::uuid, ${value.chain}, ${value.mevType}, ${value.confidenceLevel}, ${value.frontRunHash ?? null}, ${value.victimHash ?? null}, ${value.backRunHash ?? null}, ${value.poolAddress ?? null}, ${value.profitEstimate ?? null}, ${JSON.stringify(value.evidence)}::jsonb, ${value.method}, ${value.methodVersion})`);
+    return values.length;
+  }
+  async createReport(caseId: string, investigationId: string | null, actorId: string, value: ForensicReportPersistenceInput) {
+    const result = await this.db.execute(sql`insert into forensic_reports (case_id, investigation_id, title, generated_by, report_type, content, method_versions) values (${caseId}::uuid, ${investigationId}::uuid, ${value.title}, ${actorId}::uuid, ${value.reportType}, ${JSON.stringify(value.content)}::jsonb, ${JSON.stringify(value.methodVersions)}::jsonb) returning *`);
+    return forensicReportRecord(result.rows[0] as Record<string, unknown>);
+  }
+  async findReport(caseId: string, reportId: string) {
+    const result = await this.db.execute(sql`select * from forensic_reports where id = ${reportId}::uuid and case_id = ${caseId}::uuid`);
+    return result.rows[0] ? forensicReportRecord(result.rows[0] as Record<string, unknown>) : null;
+  }
+}
+
 class PostgresUserRepository implements UserRepository {
   constructor(private readonly db: Executor) {}
   async findActorByUsername(username: string): Promise<Actor | null> {
@@ -235,12 +308,12 @@ export class PostgresRepositories implements TransactionCoordinator {
   constructor(private readonly db: CashnetDatabase) {}
   context(): RepositoryContext {
     const executor = this.db as Executor;
-    return { cases: new PostgresCaseRepository(executor), investigations: new PostgresInvestigationRepository(executor), walletSubjects: new PostgresWalletSubjectRepository(executor), evidence: new PostgresEvidenceRepository(executor), audit: new PostgresAuditRepository(executor), users: new PostgresUserRepository(executor), blockchain: new PostgresBlockchainRepository(executor), graph: new PostgresGraphRepository(executor), intelligence: new PostgresIntelligenceRepository(executor) };
+    return { cases: new PostgresCaseRepository(executor), investigations: new PostgresInvestigationRepository(executor), walletSubjects: new PostgresWalletSubjectRepository(executor), evidence: new PostgresEvidenceRepository(executor), audit: new PostgresAuditRepository(executor), users: new PostgresUserRepository(executor), blockchain: new PostgresBlockchainRepository(executor), graph: new PostgresGraphRepository(executor), intelligence: new PostgresIntelligenceRepository(executor), analytics: new PostgresAnalyticsRepository(executor) };
   }
   async transaction<T>(work: (repositories: RepositoryContext) => Promise<T>): Promise<T> {
     return this.db.transaction(async (transaction) => {
       const executor = transaction as unknown as Executor;
-      return work({ cases: new PostgresCaseRepository(executor), investigations: new PostgresInvestigationRepository(executor), walletSubjects: new PostgresWalletSubjectRepository(executor), evidence: new PostgresEvidenceRepository(executor), audit: new PostgresAuditRepository(executor), users: new PostgresUserRepository(executor), blockchain: new PostgresBlockchainRepository(executor), graph: new PostgresGraphRepository(executor), intelligence: new PostgresIntelligenceRepository(executor) });
+      return work({ cases: new PostgresCaseRepository(executor), investigations: new PostgresInvestigationRepository(executor), walletSubjects: new PostgresWalletSubjectRepository(executor), evidence: new PostgresEvidenceRepository(executor), audit: new PostgresAuditRepository(executor), users: new PostgresUserRepository(executor), blockchain: new PostgresBlockchainRepository(executor), graph: new PostgresGraphRepository(executor), intelligence: new PostgresIntelligenceRepository(executor), analytics: new PostgresAnalyticsRepository(executor) });
     });
   }
 }

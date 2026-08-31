@@ -124,8 +124,9 @@ export class GraphFeatureService {
     caseId: string,
     chain: string,
     address: string,
+    maxEdges = 10_000,
   ): Promise<GraphFeatureSet> {
-    const edges = await repos.graph.listByCaseAndChain(caseId, chain);
+    const edges = await repos.graph.listByCaseAndChain(caseId, chain, Math.min(Math.max(maxEdges, 1), 50_000));
 
     const features: GraphFeature[] = [];
     for (const computer of ALL_FEATURE_COMPUTERS) {

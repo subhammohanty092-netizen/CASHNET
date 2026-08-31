@@ -20,9 +20,11 @@ CREATE TABLE IF NOT EXISTS graph_features (
   method TEXT NOT NULL,
   method_version TEXT NOT NULL,
   scope_description TEXT,
-  computed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (case_id, investigation_id, chain, lower(address), feature_type, method, method_version)
+  computed_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE INDEX IF NOT EXISTS idx_graph_features_lookup
   ON graph_features (case_id, investigation_id, chain, lower(address));
+
+CREATE UNIQUE INDEX IF NOT EXISTS graph_features_case_insensitive_unique
+  ON graph_features (case_id, investigation_id, chain, lower(address), feature_type, method, method_version);

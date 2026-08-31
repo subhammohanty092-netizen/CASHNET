@@ -17,6 +17,7 @@ const migrations = [
   ["20260901_phase6_graph", path.join(projectRoot, "database", "migrations", "20260901_phase6_graph.sql")],
   ["20260901_phase6_defi", path.join(projectRoot, "database", "migrations", "20260901_phase6_defi.sql")],
   ["20260901_phase6_production", path.join(projectRoot, "database", "migrations", "20260901_phase6_production.sql")],
+  ["20260902_phase6_operational_compatibility", path.join(projectRoot, "database", "migrations", "20260902_phase6_operational_compatibility.sql")],
 ] as const;
 
 if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is required to run migrations.");
