@@ -20,10 +20,10 @@
 | 10 | Case membership | ✅ PASS | Creator auto-assigned, supervisor isolated |
 | 11 | Case CRUD | ✅ PASS | Create, read, list, status transitions |
 | 12 | Investigation lifecycle | ✅ PASS | Create, read, graph query |
-| 13 | Collection pipeline | ✅ PARTIALLY_VALIDATED | Bitcoin/Esplora live validated; Ethereum/TRON pending credentials |
-| 14 | Etherscan V2 | ⏳ IMPLEMENTED_PENDING_LIVE_VALIDATION | No API key configured |
-| 15 | Esplora | ✅ LIVE_VALIDATED | Blockstream endpoint, 25 real txs, 49 inputs, 50 outputs persisted |
-| 16 | TronGrid | ⏳ IMPLEMENTED_PENDING_LIVE_VALIDATION | No API key configured |
+| 13 | Collection pipeline | ✅ FULLY_VALIDATED | All 3 providers live validated with real blockchain data |
+| 14 | Etherscan V2 | ✅ LIVE_VALIDATED | 283 txs + 100 token transfers from Ethereum Foundation |
+| 15 | Esplora | ✅ LIVE_VALIDATED | 25 txs from Bitcoin genesis address via blockstream.info |
+| 16 | TronGrid | ✅ LIVE_VALIDATED | 200 txs + 100 TRC-20 transfers via trongrid.io |
 | 17 | Label dataset | ⏳ DATASET_PENDING_APPROVAL | Adapter implemented, governance required |
 | 18 | Bitcoin clustering | ✅ METHODOLOGY_IMPLEMENTED | Clean-room, verified in tests 25-27 |
 | 19 | Service assessment | ✅ PASS | Returns INSUFFICIENT_EVIDENCE correctly |
@@ -50,9 +50,9 @@
 
 | Repository | Classification | Notes |
 |---|---|---|
-| Etherscan V2 | IMPLEMENTED_PENDING_LIVE_VALIDATION | Provider adapter complete |
+| Etherscan V2 | LIVE_VALIDATED | 283 txs from 0xde0b295669a9fd93d5f28d9ec85e40f4cb697bae via api.etherscan.io/v2 |
 | Esplora | LIVE_VALIDATED | 25 txs from 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa via blockstream.info/api |
-| TronGrid | IMPLEMENTED_PENDING_LIVE_VALIDATION | Provider adapter complete |
+| TronGrid | LIVE_VALIDATED | 200 txs from TLyqzVGLV1srkB7dToTAEqgDSfPtXRJZYH via api.trongrid.io |
 | crypto-wallet-address-labels | DATASET_PENDING_APPROVAL | Governed adapter implemented |
 | bitcoin-address-clustering | METHODOLOGY_IMPLEMENTED | Clean-room implementation |
 | am-i-exposed | REFERENCE_ONLY | |
@@ -72,7 +72,7 @@
 
 ## Blocked External Dependencies
 
-1. **Provider credentials** — Etherscan API key, TronGrid API key (Esplora is now live validated)
+1. ~~**Provider credentials**~~ — ✅ ALL RESOLVED (Esplora, Etherscan, TronGrid live validated)
 2. **Address-label dataset** — Requires governance approval before operational use
 3. **Ground-truth corpus** — No independent evaluation dataset available
 
