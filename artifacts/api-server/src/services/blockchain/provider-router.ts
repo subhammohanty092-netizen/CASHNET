@@ -4,6 +4,9 @@ import type { SupportedChain } from "./provider";
 import { EsploraBitcoinProvider } from "./esplora-provider";
 import { EtherscanEthereumProvider } from "./etherscan-provider";
 import { TronGridProvider } from "./trongrid-provider";
+import { BscScanBnbProvider } from "./bscscan-provider";
+import { PolygonScanProvider } from "./polygonscan-provider";
+import { SolanaRpcProvider } from "./solana-provider";
 import type { BlockchainFactProvider } from "./types";
 
 export class ProviderRouter {
@@ -13,6 +16,9 @@ export class ProviderRouter {
     if (chain === "ETHEREUM") return new EtherscanEthereumProvider(this.config, this.fetcher);
     if (chain === "BITCOIN") return new EsploraBitcoinProvider(this.config, this.fetcher);
     if (chain === "TRON") return new TronGridProvider(this.config, this.fetcher);
-    throw new UnsupportedChainError(`No Phase 3 provider is configured for ${chain}.`);
+    if (chain === "BNB_CHAIN") return new BscScanBnbProvider(this.config, this.fetcher);
+    if (chain === "POLYGON") return new PolygonScanProvider(this.config, this.fetcher);
+    if (chain === "SOLANA") return new SolanaRpcProvider(this.config, this.fetcher);
+    throw new UnsupportedChainError(`No provider is configured for ${chain}.`);
   }
 }

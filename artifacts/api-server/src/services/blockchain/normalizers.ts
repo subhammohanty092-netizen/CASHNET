@@ -34,3 +34,43 @@ export function tronTransaction(rawValue: unknown): NormalizedTransactionBundle 
   return { transaction: tx, tokenTransfers: [], contractInteractions: [] };
 }
 export function tronTokenTransfer(rawValue: unknown): TokenTransfer | null { const raw = record(rawValue); const hash = string(raw.transaction_id); const from = string(raw.from); const to = string(raw.to); const token = record(raw.token_info); if (!hash || !from || !to || !string(raw.value)) return null; return TokenTransferSchema.parse({ id: id("transfer", "TRON", `${hash}:${from}:${to}:${string(token.address) ?? "trc20"}`), chain: "TRON", transactionHash: hash, from, to, asset: string(token.symbol) ?? "TRC20", amount: String(raw.value), contractAddress: string(token.address), createdAt: isoNow(), provenance: apiProvenance("trongrid", `trongrid://trc20/${hash}`, raw) }); }
+
+// ── BNB Chain (BscScan) normalizers ──────────────────────────────────────────
+// BNB Chain is EVM-compatible. Reuses EVM normalization pattern but with
+// independent chain identity ("BNB_CHAIN"), provider name ("bscscan"),
+// and native asset (BNB, balance in wei / 18 decimals).
+
+export function bnbWallet(address: string, balance: unknown, raw: unknown): Wallet {
+  return WalletSchema.parse({ id: id("wallet", "BNB_CHAIN", address.toLowerCase()), address, chain: "BNB_CHAIN", balance: String(balance ?? "0"), balanceUnit: "wei", createdAt: isoNow(), provenance: apiProvenance("bscscan", `bscscan://account/${address}`, raw) });
+}
+export function bnbTransaction(rawValue: unknown, kind = "normal"): NormalizedTransactionBundle {
+  const raw = record(rawValue); const hash = string(raw.hash) ?? string(raw.transactionHash) ?? "unknown"; const from = string(raw.from); const to = string(raw.to);
+  const tx: BlockchainTransaction = BlockchainTransactionSchema.parse({ id: id("tx", "BNB_CHAIN", hash), chain: "BNB_CHAIN", transactionHash: hash, createdAt: isoNow(), timestamp: dateFromSeconds(raw.timeStamp), blockNumber: string(raw.blockNumber), blockHash: string(raw.blockHash), confirmations: string(raw.confirmations) ? Number(raw.confirmations) : undefined, from, to, value: string(raw.value), fee: string(raw.gasUsed) && string(raw.gasPrice) ? String(BigInt(String(raw.gasUsed)) * BigInt(String(raw.gasPrice))) : undefined, gas: string(raw.gas), gasPrice: string(raw.gasPrice), gasUsed: string(raw.gasUsed), input: string(raw.input), methodSelector: string(raw.methodId) ?? (string(raw.input)?.slice(0, 10)), functionName: string(raw.functionName), executionStatus: raw.isError === "1" || raw.txreceipt_status === "0" ? "FAILED" : raw.blockNumber ? "SUCCESS" : "PENDING", inputs: [], outputs: [], provenance: apiProvenance("bscscan", `bscscan://transaction/${hash}/${kind}`, raw) });
+  const transfers: TokenTransfer[] = kind === "token" && from && to && string(raw.tokenSymbol) && string(raw.value) ? [TokenTransferSchema.parse({ id: id("transfer", "BNB_CHAIN", `${hash}:${from}:${to}:${raw.contractAddress ?? "native"}`), chain: "BNB_CHAIN", transactionHash: hash, from, to, asset: String(raw.tokenSymbol), amount: String(raw.value), contractAddress: string(raw.contractAddress), createdAt: isoNow(), provenance: apiProvenance("bscscan", `bscscan://token-transfer/${hash}`, raw) })] : [];
+  const interactions: ContractInteraction[] = to && string(raw.input) && string(raw.input) !== "0x" ? [ContractInteractionSchema.parse({ id: id("interaction", "BNB_CHAIN", `${hash}:${to}`), chain: "BNB_CHAIN", transactionHash: hash, contractAddress: to, methodSelector: string(raw.methodId) ?? string(raw.input)?.slice(0, 10), input: string(raw.input), createdAt: isoNow(), provenance: apiProvenance("bscscan", `bscscan://contract/${hash}`, raw) })] : [];
+  return { transaction: tx, tokenTransfers: transfers, contractInteractions: interactions };
+}
+export function bnbTokenTransfer(rawValue: unknown): TokenTransfer | null {
+  const raw = record(rawValue); const hash = string(raw.hash) ?? string(raw.transactionHash); const from = string(raw.from); const to = string(raw.to);
+  if (!hash || !from || !to || !string(raw.value) || !string(raw.tokenSymbol)) return null;
+  return TokenTransferSchema.parse({ id: id("transfer", "BNB_CHAIN", `${hash}:${from}:${to}:${raw.contractAddress ?? "bep20"}`), chain: "BNB_CHAIN", transactionHash: hash, from, to, asset: String(raw.tokenSymbol), amount: String(raw.value), contractAddress: string(raw.contractAddress), createdAt: isoNow(), provenance: apiProvenance("bscscan", `bscscan://bep20/${hash}`, raw) });
+}
+
+// ── Polygon (PolygonScan) normalizers ────────────────────────────────────────
+// Polygon is EVM-compatible. Native asset: POL (formerly MATIC), balance in wei.
+
+export function polygonWallet(address: string, balance: unknown, raw: unknown): Wallet {
+  return WalletSchema.parse({ id: id("wallet", "POLYGON", address.toLowerCase()), address, chain: "POLYGON", balance: String(balance ?? "0"), balanceUnit: "wei", createdAt: isoNow(), provenance: apiProvenance("polygonscan", `polygonscan://account/${address}`, raw) });
+}
+export function polygonTransaction(rawValue: unknown, kind = "normal"): NormalizedTransactionBundle {
+  const raw = record(rawValue); const hash = string(raw.hash) ?? string(raw.transactionHash) ?? "unknown"; const from = string(raw.from); const to = string(raw.to);
+  const tx: BlockchainTransaction = BlockchainTransactionSchema.parse({ id: id("tx", "POLYGON", hash), chain: "POLYGON", transactionHash: hash, createdAt: isoNow(), timestamp: dateFromSeconds(raw.timeStamp), blockNumber: string(raw.blockNumber), blockHash: string(raw.blockHash), confirmations: string(raw.confirmations) ? Number(raw.confirmations) : undefined, from, to, value: string(raw.value), fee: string(raw.gasUsed) && string(raw.gasPrice) ? String(BigInt(String(raw.gasUsed)) * BigInt(String(raw.gasPrice))) : undefined, gas: string(raw.gas), gasPrice: string(raw.gasPrice), gasUsed: string(raw.gasUsed), input: string(raw.input), methodSelector: string(raw.methodId) ?? (string(raw.input)?.slice(0, 10)), functionName: string(raw.functionName), executionStatus: raw.isError === "1" || raw.txreceipt_status === "0" ? "FAILED" : raw.blockNumber ? "SUCCESS" : "PENDING", inputs: [], outputs: [], provenance: apiProvenance("polygonscan", `polygonscan://transaction/${hash}/${kind}`, raw) });
+  const transfers: TokenTransfer[] = kind === "token" && from && to && string(raw.tokenSymbol) && string(raw.value) ? [TokenTransferSchema.parse({ id: id("transfer", "POLYGON", `${hash}:${from}:${to}:${raw.contractAddress ?? "native"}`), chain: "POLYGON", transactionHash: hash, from, to, asset: String(raw.tokenSymbol), amount: String(raw.value), contractAddress: string(raw.contractAddress), createdAt: isoNow(), provenance: apiProvenance("polygonscan", `polygonscan://token-transfer/${hash}`, raw) })] : [];
+  const interactions: ContractInteraction[] = to && string(raw.input) && string(raw.input) !== "0x" ? [ContractInteractionSchema.parse({ id: id("interaction", "POLYGON", `${hash}:${to}`), chain: "POLYGON", transactionHash: hash, contractAddress: to, methodSelector: string(raw.methodId) ?? string(raw.input)?.slice(0, 10), input: string(raw.input), createdAt: isoNow(), provenance: apiProvenance("polygonscan", `polygonscan://contract/${hash}`, raw) })] : [];
+  return { transaction: tx, tokenTransfers: transfers, contractInteractions: interactions };
+}
+export function polygonTokenTransfer(rawValue: unknown): TokenTransfer | null {
+  const raw = record(rawValue); const hash = string(raw.hash) ?? string(raw.transactionHash); const from = string(raw.from); const to = string(raw.to);
+  if (!hash || !from || !to || !string(raw.value) || !string(raw.tokenSymbol)) return null;
+  return TokenTransferSchema.parse({ id: id("transfer", "POLYGON", `${hash}:${from}:${to}:${raw.contractAddress ?? "erc20"}`), chain: "POLYGON", transactionHash: hash, from, to, asset: String(raw.tokenSymbol), amount: String(raw.value), contractAddress: string(raw.contractAddress), createdAt: isoNow(), provenance: apiProvenance("polygonscan", `polygonscan://erc20/${hash}`, raw) });
+}

@@ -44,7 +44,7 @@ test("provider HTTP handling maps rate limits and router rejects unsupported cha
   const client = new ProviderHttpClient({ timeoutMs: 100, maxRetries: 0 }, async () => json({}, 429));
   await assert.rejects(() => client.getJson("https://example.invalid"), RateLimitError);
   const router = new ProviderRouter(authorized());
-  assert.throws(() => router.forChain("SOLANA"), UnsupportedChainError);
+  assert.throws(() => router.forChain("OTHER"), UnsupportedChainError);
   assert.throws(() => new ProviderRouter(createConfig({ CASHNET_DATA_MODE: "synthetic" })).forChain("ETHEREUM"), UnsupportedChainError);
 });
 
