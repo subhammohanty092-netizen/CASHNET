@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { HealthCheckResponse } from "@workspace/api-zod";
 import { getDatabase } from "@workspace/db";
+import { config } from "../config";
 import { renderMetrics } from "../observability/metrics";
 
 const router: IRouter = Router();
@@ -23,6 +24,10 @@ router.get("/readyz", async (_req, res) => {
     }
   } else {
     checks.database = "not_configured";
+    if (config.environment === "production") {
+      res.status(503).json({ status: "not_ready", checks });
+      return;
+    }
   }
   res.json({ status: "ok", checks });
 });

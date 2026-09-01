@@ -3,6 +3,8 @@ import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { test } from "node:test";
 import express from "express";
+import app from "./app";
+import { rateLimitMiddleware } from "./middleware/security";
 import { createConfig } from "./config";
 import { apiErrorHandler, operationalErrorDetails } from "./errors/middleware";
 import v1Router from "./routes/v1";
@@ -24,6 +26,53 @@ async function request(path: string) {
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }
 }
+
+async function requestApp(path: string, init?: RequestInit) {
+  const server = createServer(app);
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address !== "string");
+  try {
+    return await fetch(`http://127.0.0.1:${address.port}${path}`, init);
+  } finally {
+    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+}
+
+test("production security middleware is executed by real HTTP requests", async () => {
+  const response = await requestApp("/api/healthz", { headers: { Origin: "https://untrusted.example", "X-Request-ID": "audit-request-1" } });
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("x-request-id"), "audit-request-1");
+  assert.equal(response.headers.get("x-content-type-options"), "nosniff");
+  assert.equal(response.headers.get("x-frame-options"), "DENY");
+  assert.match(response.headers.get("content-security-policy") ?? "", /default-src 'none'/);
+  assert.equal(response.headers.get("access-control-allow-origin"), null);
+  const oversized = await requestApp("/api/healthz", { method: "POST", headers: { "Content-Type": "text/plain", "Content-Length": "1048577" }, body: "x".repeat(1_048_577) });
+  assert.equal(oversized.status, 413);
+});
+
+test("rate limiting middleware rejects excessive real HTTP requests", async () => {
+  const limited = express();
+  limited.use(rateLimitMiddleware({ windowMs: 60_000, maxRequests: 1 }));
+  limited.get("/", (_req, res) => res.json({ ok: true }));
+  const server = createServer(limited);
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address(); assert.ok(address && typeof address !== "string");
+  try {
+    assert.equal((await fetch(`http://127.0.0.1:${address.port}/`)).status, 200);
+    const blocked = await fetch(`http://127.0.0.1:${address.port}/`);
+    assert.equal(blocked.status, 429);
+    assert.ok(blocked.headers.get("retry-after"));
+  } finally {
+    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+});
+
+test("production readiness fails closed when a persistent database is not configured", async () => {
+  const healthRoute = await readFile(new URL("../src/routes/health.ts", import.meta.url), "utf8");
+  assert.match(healthRoute, /config\.environment === "production"/);
+  assert.match(healthRoute, /res\.status\(503\)\.json\(\{ status: "not_ready", checks \}\)/);
+});
 
 test("configuration defaults to explicit synthetic mode without exposing provider secrets", () => {
   const config = createConfig({ CASHNET_DATA_MODE: "synthetic", ETHERSCAN_API_KEY: "secret" });

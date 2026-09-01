@@ -4,9 +4,19 @@ export async function resolve(specifier, context, nextResolve) {
       return await nextResolve(`${specifier}.js`, context);
     } catch {
       try {
-        return await nextResolve(`${specifier}/index.js`, context);
+        // Workspace packages export TypeScript source during tests.  Node 24
+        // can strip types, but it still requires an explicit file target.
+        return await nextResolve(`${specifier}.ts`, context);
       } catch {
-        return nextResolve(specifier, context);
+        try {
+          return await nextResolve(`${specifier}/index.js`, context);
+        } catch {
+          try {
+            return await nextResolve(`${specifier}/index.ts`, context);
+          } catch {
+            return nextResolve(specifier, context);
+          }
+        }
       }
     }
   }

@@ -11,7 +11,9 @@ import { redactSecrets } from "./middleware/security";
 import type { GraphRelationshipRecord } from "./repositories/types";
 import type { RiskIndicatorResult } from "./services/risk/aml-risk-indicator-service";
 import { generateKeyPairSync, sign } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import { JWTAuthenticator } from "./services/auth/jwt-authenticator";
+import { TronGridProvider } from "./services/blockchain/trongrid-provider";
 
 // ── Test helpers ────────────────────────────────────────────────────────────
 
@@ -215,4 +217,56 @@ test("Phase 6.6 JWT authenticator rejects a token with valid claims but invalid 
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test("Phase 6 runtime configuration does not mark Solana configured without an approved endpoint", async () => {
+  const { createConfig } = await import("./config");
+  assert.equal(createConfig({ CASHNET_DATA_MODE: "authorized" }).providers.solana.configured, false);
+  assert.equal(createConfig({ CASHNET_DATA_MODE: "authorized", SOLANA_RPC_URL: "https://approved-rpc.example" }).providers.solana.configured, true);
+});
+
+test("TronGrid transaction lookup uses the shared injected HTTP client POST path", async () => {
+  let capturedMethod: string | undefined;
+  const config = (await import("./config")).createConfig({ CASHNET_DATA_MODE: "authorized", TRONGRID_API_KEY: "test-key", CASHNET_PROVIDER_MAX_RETRIES: "0" });
+  const provider = new TronGridProvider(config, async (_url, init) => {
+    capturedMethod = init?.method;
+    return new Response(JSON.stringify({}), { status: 200, headers: { "content-type": "application/json" } });
+  });
+  assert.deepEqual(await provider.getTransaction("a".repeat(64)), { status: "EMPTY", data: null });
+  assert.equal(capturedMethod, "POST");
+});
+
+test("Phase 6 migrations evolve the legacy risk table and use an expression index for canonical addresses", async () => {
+  const root = new URL("../../../", import.meta.url);
+  const [risk, graph, compatibility, runner] = await Promise.all([
+    readFile(new URL("database/migrations/20260901_phase6_risk.sql", root), "utf8"),
+    readFile(new URL("database/migrations/20260901_phase6_graph.sql", root), "utf8"),
+    readFile(new URL("database/migrations/20260902_phase6_operational_compatibility.sql", root), "utf8"),
+    readFile(new URL("lib/db/src/migrate.ts", root), "utf8"),
+  ]);
+  assert.match(risk, /ALTER TABLE risk_indicators[\s\S]*ADD COLUMN IF NOT EXISTS run_id/i);
+  assert.doesNotMatch(risk, /CREATE TABLE IF NOT EXISTS risk_indicators/i);
+  assert.match(graph, /CREATE UNIQUE INDEX IF NOT EXISTS[\s\S]*lower\(address\)/i);
+  assert.doesNotMatch(graph, /UNIQUE\s*\([^)]*lower\(address\)/i);
+  assert.match(compatibility, /CREATE TABLE IF NOT EXISTS community_analysis_runs/i);
+  assert.match(runner, /20260902_phase6_operational_compatibility/);
+});
+
+test("Phase 6 provider lookups require investigation scope and reject a chain mismatch as validation", async () => {
+  const root = new URL("../../../", import.meta.url);
+  const [walletRoute, transactionRoute, openApi] = await Promise.all([
+    readFile(new URL("artifacts/api-server/src/routes/v1/wallets.ts", root), "utf8"),
+    readFile(new URL("artifacts/api-server/src/routes/v1/transactions.ts", root), "utf8"),
+    readFile(new URL("lib/api-spec/openapi.yaml", root), "utf8"),
+  ]);
+  for (const route of [walletRoute, transactionRoute]) {
+    assert.match(route, /investigation_id/);
+    assert.match(route, /ValidationFailureError\("Lookup chain must match/);
+    assert.doesNotMatch(route, /throw new Error\("Lookup chain must match/);
+  }
+  assert.match(openApi, /name: investigation_id, in: query, required: true/);
+  assert.match(openApi, /executeInvestigationRiskAnalysis/);
+  assert.match(openApi, /computeInvestigationGraphFeatures/);
+  assert.match(openApi, /analyzeInvestigationDefiMev/);
+  assert.match(openApi, /generateInvestigationForensicReport/);
 });

@@ -1,7 +1,9 @@
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
-import * as schema from "./schema";
+// Import the concrete module entry point.  A bare directory import is handled
+// by some bundlers, but Node's ESM resolver rejects it at runtime.
+import * as schema from "./schema/index";
 
 const { Pool } = pg;
 
@@ -55,4 +57,4 @@ export async function getDatabaseRuntimeIdentity() {
   };
 }
 
-export * from "./schema";
+export * from "./schema/index";
