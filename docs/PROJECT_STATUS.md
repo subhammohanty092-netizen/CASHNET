@@ -25,7 +25,7 @@
 
 ## Phase 6
 
-The post-tag corrective implementation adds Phase 6 persistence/API wiring, migration compatibility, JWT signature verification, scoped provider lookups, security middleware, metrics, Docker/Compose corrections, and backup/restore scripts. The authoritative current gate is [phase6-final-production-readiness.md](phase6-final-production-readiness.md).
+The post-tag corrective implementation adds Phase 6 persistence/API wiring, migration compatibility, JWT signature verification, scoped provider lookups, security middleware, metrics, Docker/Compose corrections, and backup/restore scripts. The authorised API has executed controlled PostgreSQL-backed AML, graph/community, and historical DeFi/MEV flows. A graph-feature chain-provenance repair and a distinct supervisor/admin case-authorisation permission were added after that execution; they await direct migration replay in the authorised terminal. The authoritative current gate is [phase6-final-production-readiness.md](phase6-final-production-readiness.md).
 
 - `IMPLEMENTED` source is not equivalent to production readiness.
 - PostgreSQL replay/persistence, container execution, CI execution, provider live validation, and backup/restore drill remain environment-dependent.

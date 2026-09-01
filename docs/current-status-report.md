@@ -14,11 +14,11 @@ The backend now provides versioned Phase 2–5 API boundaries alongside untouche
 
 ## Working verification
 
-The current corrective branch passes TypeScript checking, OpenAPI generation, **54 API/unit tests**, production API build, and `git diff --check`. A local production-mode HTTP probe verified HSTS, CSP, request IDs, CORS allowlisting, safe metrics, and fail-closed readiness without a database configuration.
+The current corrective branch passes TypeScript checking, OpenAPI generation, **56 API/unit tests**, production API build, and `git diff --check`. The authorised running API returned 200 for health/version/readiness/metrics and executed controlled PostgreSQL-backed AML, graph/community and historical DeFi/MEV flows; empty inputs produced zero findings rather than fabricated intelligence. A local production-mode HTTP probe separately verified HSTS, CSP, request IDs, CORS allowlisting, safe metrics, and fail-closed readiness without a database configuration.
 
 ## Environment status
 
-PostgreSQL 18 is running locally, but this Codex process has no `DATABASE_URL` and therefore cannot safely select a database/user for replay or destructive restore testing. No provider credentials/endpoints, Docker CLI, approved dataset, or independent ground-truth corpus was inherited. These gates remain pending rather than claimed as passed.
+The running authorised API has database access, but this Codex process has no inherited `DATABASE_URL` or PostgreSQL CLI and therefore cannot safely run direct replay, schema inspection, trigger mutation, or restore testing. No provider credentials/endpoints, Docker CLI, approved dataset, or independent ground-truth corpus was inherited. These gates remain pending rather than claimed as passed.
 
 ## Next action
 

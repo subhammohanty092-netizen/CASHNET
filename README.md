@@ -2,13 +2,13 @@
 
 **Evidence-driven multi-chain blockchain investigation and VASP intelligence platform for SIH PS26182/26183.** CASHNET is an investigator-facing TypeScript workspace that preserves a deterministic synthetic demonstration while adding a protected, server-side foundation for authorized Ethereum, Bitcoin, and TRON collection. It records provenance, isolates case data, and separates observed facts from future analytical inference or attribution.
 
-> Current release: **Phase 3 complete with environment-dependent verification pending.** It is not yet a production VASP-attribution, graph-tracing, identity-resolution, or automated enforcement system.
+> Current release: **Phase 6 corrective follow-up, operationally conditional.** CASHNET has protected Phase 3–6 checkpoints and real controlled PostgreSQL-backed API execution, but it is not yet production-ready: direct migration replay, backup/restore, container and CI evidence, authorised live-provider execution, approved label data, and independent accuracy evidence remain required.
 
 ## SIH mapping and current scope
 
 - **PS26182/26183:** case-led financial and blockchain investigation workflows: intake, authorization, evidence, normalized chain facts, audit, and reporting boundaries.
-- **Implemented:** synthetic investigator workflow; PostgreSQL persistence, RBAC, case isolation, investigation/evidence/audit records; authorized provider adapters.
-- **Planned:** bounded graph tracing, clustering, VASP/entity intelligence, fraud/risk intelligence, PS184, production identity, and institutional integrations.
+- **Implemented:** synthetic investigator workflow; PostgreSQL persistence, RBAC, case isolation, investigation/evidence/audit records; authorized provider adapters; bounded graph tracing; conservative clustering; governed address intelligence; AML/risk, historical DeFi/MEV, reporting, and production-auth foundations.
+- **Out of scope / pending external governance:** PS184, real-time mempool monitoring, unapproved label data, automated identity attribution, and independent accuracy calibration.
 
 ## Architecture
 
