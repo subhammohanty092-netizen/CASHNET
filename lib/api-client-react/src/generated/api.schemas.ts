@@ -1063,6 +1063,165 @@ export interface AttributionReview {
   createdAt: string;
 }
 
+export type RiskIndicatorSeverity = typeof RiskIndicatorSeverity[keyof typeof RiskIndicatorSeverity];
+
+
+export const RiskIndicatorSeverity = {
+  LOW: 'LOW',
+  MEDIUM: 'MEDIUM',
+  HIGH: 'HIGH',
+  CRITICAL: 'CRITICAL',
+} as const;
+
+export type RiskIndicatorScoreSemantics = typeof RiskIndicatorScoreSemantics[keyof typeof RiskIndicatorScoreSemantics];
+
+
+export const RiskIndicatorScoreSemantics = {
+  HEURISTIC_SCORE_NOT_PROBABILITY: 'HEURISTIC_SCORE_NOT_PROBABILITY',
+} as const;
+
+export type RiskIndicatorEvidenceItem = { [key: string]: unknown };
+
+export type RiskIndicatorProvenance = { [key: string]: unknown };
+
+export interface RiskIndicator {
+  id: string;
+  caseId: string;
+  investigationId: string;
+  indicatorType: string;
+  category: string;
+  severity: RiskIndicatorSeverity;
+  scoreContribution: number;
+  scoreSemantics: RiskIndicatorScoreSemantics;
+  /** @nullable */
+  confidenceLevel?: string | null;
+  evidence?: RiskIndicatorEvidenceItem[];
+  provenance: RiskIndicatorProvenance;
+  method: string;
+  methodVersion: string;
+  createdAt: string;
+}
+
+export type RiskAnalysisRunRun = { [key: string]: unknown };
+
+export type RiskAnalysisRunTypologiesItem = { [key: string]: unknown };
+
+export type RiskAnalysisRunScoreSemantics = typeof RiskAnalysisRunScoreSemantics[keyof typeof RiskAnalysisRunScoreSemantics];
+
+
+export const RiskAnalysisRunScoreSemantics = {
+  HEURISTIC_SCORE_NOT_PROBABILITY: 'HEURISTIC_SCORE_NOT_PROBABILITY',
+} as const;
+
+export interface RiskAnalysisRun {
+  run: RiskAnalysisRunRun;
+  indicators: RiskIndicator[];
+  typologies: RiskAnalysisRunTypologiesItem[];
+  scoreSemantics: RiskAnalysisRunScoreSemantics;
+}
+
+export interface GraphFeatureRunInput {
+  /**
+     * @minimum 1
+     * @maximum 10000
+     */
+  max_edges?: number;
+}
+
+export type GraphFeatureRunFeaturesItem = { [key: string]: unknown };
+
+export interface GraphFeatureRun {
+  features: GraphFeatureRunFeaturesItem[];
+  edgeCount: number;
+  method: string;
+  methodVersion: string;
+  maxEdges: number;
+}
+
+export interface CommunityRunInput {
+  /**
+     * @minimum 1
+     * @maximum 10000
+     */
+  max_nodes?: number;
+  /**
+     * @minimum 1
+     * @maximum 10000
+     */
+  max_edges?: number;
+  /**
+     * @minimum 100
+     * @maximum 5000
+     */
+  max_runtime_ms?: number;
+  /**
+     * @minimum 1
+     * @maximum 500
+     */
+  max_communities?: number;
+}
+
+export type CommunityRunRun = { [key: string]: unknown };
+
+export type CommunityRunCommunitiesItem = { [key: string]: unknown };
+
+export type CommunityRunLimits = { [key: string]: unknown };
+
+export interface CommunityRun {
+  run: CommunityRunRun;
+  communities: CommunityRunCommunitiesItem[];
+  totalNodes: number;
+  totalEdges: number;
+  limits: CommunityRunLimits;
+}
+
+export type DefiMevAnalysisInteractionsItem = { [key: string]: unknown };
+
+export type DefiMevAnalysisMev = { [key: string]: unknown };
+
+export interface DefiMevAnalysis {
+  interactions: DefiMevAnalysisInteractionsItem[];
+  mev: DefiMevAnalysisMev;
+  historicalOnly: true;
+  disclaimer: string;
+}
+
+export type ForensicReportInputReportType = typeof ForensicReportInputReportType[keyof typeof ForensicReportInputReportType];
+
+
+export const ForensicReportInputReportType = {
+  INVESTIGATION_SUMMARY: 'INVESTIGATION_SUMMARY',
+  RISK_ASSESSMENT: 'RISK_ASSESSMENT',
+  GRAPH_ANALYSIS: 'GRAPH_ANALYSIS',
+  FULL_FORENSIC: 'FULL_FORENSIC',
+} as const;
+
+export interface ForensicReportInput {
+  report_type?: ForensicReportInputReportType;
+}
+
+export type ForensicReportContent = { [key: string]: unknown };
+
+export type ForensicReportMethodVersions = {[key: string]: string};
+
+export interface ForensicReport {
+  id: string;
+  caseId: string;
+  investigationId: string;
+  reportType: string;
+  content: ForensicReportContent;
+  methodVersions: ForensicReportMethodVersions;
+  createdAt: string;
+}
+
+export type ListInvestigationRiskIndicatorsParams = {
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+limit?: number;
+};
+
 export type TraceInvestigationGraphParams = {
 /**
  * @minimum 1
@@ -1121,5 +1280,19 @@ export type ListInvestigationVaspCandidatesParams = {
  * @maximum 100
  */
 limit?: number;
+};
+
+export type GetLiveWalletProfileParams = {
+/**
+ * Authorized investigation scope; a valid actor alone is insufficient.
+ */
+investigation_id: string;
+};
+
+export type GetLiveTransactionParams = {
+/**
+ * Authorized investigation scope; a valid actor alone is insufficient.
+ */
+investigation_id: string;
 };
 

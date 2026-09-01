@@ -31,10 +31,19 @@ import type {
   ClusterRunInput,
   ClusterRunResult,
   CollectionResult,
+  CommunityRun,
+  CommunityRunInput,
   ComplaintInput,
   Dashboard,
+  DefiMevAnalysis,
   EvidenceInput,
+  ForensicReport,
+  ForensicReportInput,
   FundFlow,
+  GetLiveTransactionParams,
+  GetLiveWalletProfileParams,
+  GraphFeatureRun,
+  GraphFeatureRunInput,
   HealthStatus,
   Intervention,
   InterventionInput,
@@ -42,6 +51,7 @@ import type {
   InvestigationInput,
   InvestigationTransitionInput,
   ListInvestigationClustersParams,
+  ListInvestigationRiskIndicatorsParams,
   ListInvestigationVaspCandidatesParams,
   LiveWalletResult,
   NormalizedTransactionBundle,
@@ -52,6 +62,8 @@ import type {
   PersistentInvestigation,
   PredictionResult,
   Report,
+  RiskAnalysisRun,
+  RiskIndicator,
   TraceInvestigationGraphParams,
   VaspAnalysisInput,
   VaspAnalysisResult,
@@ -1997,6 +2009,673 @@ export const useCollectInvestigationProviderData = <TError = unknown,
       return useMutation(getCollectInvestigationProviderDataMutationOptions(options));
     }
 
+export const getExecuteInvestigationRiskAnalysisUrl = (id: string,) => {
+
+
+
+
+  return `/api/v1/investigations/${id}/risk-analysis`
+}
+
+/**
+ * @summary Execute bounded AML/risk analysis over stored case-scoped facts
+ */
+export const executeInvestigationRiskAnalysis = async (id: string, options?: RequestInit): Promise<RiskAnalysisRun> => {
+
+  const res = await fetch(getExecuteInvestigationRiskAnalysisUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: RiskAnalysisRun = body ? JSON.parse(body) : {}
+  return data
+}
+
+
+
+
+
+export const getExecuteInvestigationRiskAnalysisMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof executeInvestigationRiskAnalysis>>, TError,{id: string}, TContext>, fetch?: RequestInit}
+): UseMutationOptions<Awaited<ReturnType<typeof executeInvestigationRiskAnalysis>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['executeInvestigationRiskAnalysis'];
+const {mutation: mutationOptions, fetch: fetchOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, fetch: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof executeInvestigationRiskAnalysis>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  executeInvestigationRiskAnalysis(id,fetchOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ExecuteInvestigationRiskAnalysisMutationResult = NonNullable<Awaited<ReturnType<typeof executeInvestigationRiskAnalysis>>>
+
+    export type ExecuteInvestigationRiskAnalysisMutationError = unknown
+
+    /**
+ * @summary Execute bounded AML/risk analysis over stored case-scoped facts
+ */
+export const useExecuteInvestigationRiskAnalysis = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof executeInvestigationRiskAnalysis>>, TError,{id: string}, TContext>, fetch?: RequestInit}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof executeInvestigationRiskAnalysis>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getExecuteInvestigationRiskAnalysisMutationOptions(options));
+    }
+
+export const getListInvestigationRiskIndicatorsUrl = (id: string,
+    params?: ListInvestigationRiskIndicatorsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/investigations/${id}/risk-indicators?${stringifiedParams}` : `/api/v1/investigations/${id}/risk-indicators`
+}
+
+/**
+ * @summary List case-scoped persisted risk indicators
+ */
+export const listInvestigationRiskIndicators = async (id: string,
+    params?: ListInvestigationRiskIndicatorsParams, options?: RequestInit): Promise<RiskIndicator[]> => {
+
+  const res = await fetch(getListInvestigationRiskIndicatorsUrl(id,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: RiskIndicator[] = body ? JSON.parse(body) : {}
+  return data
+}
+
+
+
+
+
+export const getListInvestigationRiskIndicatorsQueryKey = (id: string,
+    params?: ListInvestigationRiskIndicatorsParams,) => {
+    return [
+    `/api/v1/investigations/${id}/risk-indicators`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListInvestigationRiskIndicatorsQueryOptions = <TData = Awaited<ReturnType<typeof listInvestigationRiskIndicators>>, TError = unknown>(id: string,
+    params?: ListInvestigationRiskIndicatorsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listInvestigationRiskIndicators>>, TError, TData>, fetch?: RequestInit}
+) => {
+
+const {query: queryOptions, fetch: fetchOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListInvestigationRiskIndicatorsQueryKey(id,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listInvestigationRiskIndicators>>> = ({ signal }) => listInvestigationRiskIndicators(id,params, { signal, ...fetchOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listInvestigationRiskIndicators>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListInvestigationRiskIndicatorsQueryResult = NonNullable<Awaited<ReturnType<typeof listInvestigationRiskIndicators>>>
+export type ListInvestigationRiskIndicatorsQueryError = unknown
+
+
+/**
+ * @summary List case-scoped persisted risk indicators
+ */
+
+export function useListInvestigationRiskIndicators<TData = Awaited<ReturnType<typeof listInvestigationRiskIndicators>>, TError = unknown>(
+ id: string,
+    params?: ListInvestigationRiskIndicatorsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listInvestigationRiskIndicators>>, TError, TData>, fetch?: RequestInit}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListInvestigationRiskIndicatorsQueryOptions(id,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetInvestigationRiskIndicatorUrl = (id: string,
+    resourceId: string,) => {
+
+
+
+
+  return `/api/v1/investigations/${id}/risk-indicators/${resourceId}`
+}
+
+/**
+ * @summary Get one case-scoped risk indicator
+ */
+export const getInvestigationRiskIndicator = async (id: string,
+    resourceId: string, options?: RequestInit): Promise<RiskIndicator> => {
+
+  const res = await fetch(getGetInvestigationRiskIndicatorUrl(id,resourceId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: RiskIndicator = body ? JSON.parse(body) : {}
+  return data
+}
+
+
+
+
+
+export const getGetInvestigationRiskIndicatorQueryKey = (id: string,
+    resourceId: string,) => {
+    return [
+    `/api/v1/investigations/${id}/risk-indicators/${resourceId}`
+    ] as const;
+    }
+
+
+export const getGetInvestigationRiskIndicatorQueryOptions = <TData = Awaited<ReturnType<typeof getInvestigationRiskIndicator>>, TError = unknown>(id: string,
+    resourceId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getInvestigationRiskIndicator>>, TError, TData>, fetch?: RequestInit}
+) => {
+
+const {query: queryOptions, fetch: fetchOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetInvestigationRiskIndicatorQueryKey(id,resourceId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getInvestigationRiskIndicator>>> = ({ signal }) => getInvestigationRiskIndicator(id,resourceId, { signal, ...fetchOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined && resourceId !== null && resourceId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getInvestigationRiskIndicator>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetInvestigationRiskIndicatorQueryResult = NonNullable<Awaited<ReturnType<typeof getInvestigationRiskIndicator>>>
+export type GetInvestigationRiskIndicatorQueryError = unknown
+
+
+/**
+ * @summary Get one case-scoped risk indicator
+ */
+
+export function useGetInvestigationRiskIndicator<TData = Awaited<ReturnType<typeof getInvestigationRiskIndicator>>, TError = unknown>(
+ id: string,
+    resourceId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getInvestigationRiskIndicator>>, TError, TData>, fetch?: RequestInit}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetInvestigationRiskIndicatorQueryOptions(id,resourceId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getComputeInvestigationGraphFeaturesUrl = (id: string,) => {
+
+
+
+
+  return `/api/v1/investigations/${id}/graph-features`
+}
+
+/**
+ * @summary Compute bounded graph features from stored relationships
+ */
+export const computeInvestigationGraphFeatures = async (id: string,
+    graphFeatureRunInput?: GraphFeatureRunInput, options?: RequestInit): Promise<GraphFeatureRun> => {
+
+  const res = await fetch(getComputeInvestigationGraphFeaturesUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(graphFeatureRunInput)
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: GraphFeatureRun = body ? JSON.parse(body) : {}
+  return data
+}
+
+
+
+
+
+export const getComputeInvestigationGraphFeaturesMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof computeInvestigationGraphFeatures>>, TError,{id: string;data?: GraphFeatureRunInput}, TContext>, fetch?: RequestInit}
+): UseMutationOptions<Awaited<ReturnType<typeof computeInvestigationGraphFeatures>>, TError,{id: string;data?: GraphFeatureRunInput}, TContext> => {
+
+const mutationKey = ['computeInvestigationGraphFeatures'];
+const {mutation: mutationOptions, fetch: fetchOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, fetch: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof computeInvestigationGraphFeatures>>, {id: string;data?: GraphFeatureRunInput}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  computeInvestigationGraphFeatures(id,data,fetchOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ComputeInvestigationGraphFeaturesMutationResult = NonNullable<Awaited<ReturnType<typeof computeInvestigationGraphFeatures>>>
+    export type ComputeInvestigationGraphFeaturesMutationBody = GraphFeatureRunInput | undefined
+    export type ComputeInvestigationGraphFeaturesMutationError = unknown
+
+    /**
+ * @summary Compute bounded graph features from stored relationships
+ */
+export const useComputeInvestigationGraphFeatures = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof computeInvestigationGraphFeatures>>, TError,{id: string;data?: GraphFeatureRunInput}, TContext>, fetch?: RequestInit}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof computeInvestigationGraphFeatures>>,
+        TError,
+        {id: string;data?: GraphFeatureRunInput},
+        TContext
+      > => {
+      return useMutation(getComputeInvestigationGraphFeaturesMutationOptions(options));
+    }
+
+export const getDetectInvestigationCommunitiesUrl = (id: string,) => {
+
+
+
+
+  return `/api/v1/investigations/${id}/communities`
+}
+
+/**
+ * @summary Run bounded structural community detection over stored relationships
+ */
+export const detectInvestigationCommunities = async (id: string,
+    communityRunInput?: CommunityRunInput, options?: RequestInit): Promise<CommunityRun> => {
+
+  const res = await fetch(getDetectInvestigationCommunitiesUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(communityRunInput)
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: CommunityRun = body ? JSON.parse(body) : {}
+  return data
+}
+
+
+
+
+
+export const getDetectInvestigationCommunitiesMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof detectInvestigationCommunities>>, TError,{id: string;data?: CommunityRunInput}, TContext>, fetch?: RequestInit}
+): UseMutationOptions<Awaited<ReturnType<typeof detectInvestigationCommunities>>, TError,{id: string;data?: CommunityRunInput}, TContext> => {
+
+const mutationKey = ['detectInvestigationCommunities'];
+const {mutation: mutationOptions, fetch: fetchOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, fetch: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof detectInvestigationCommunities>>, {id: string;data?: CommunityRunInput}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  detectInvestigationCommunities(id,data,fetchOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DetectInvestigationCommunitiesMutationResult = NonNullable<Awaited<ReturnType<typeof detectInvestigationCommunities>>>
+    export type DetectInvestigationCommunitiesMutationBody = CommunityRunInput | undefined
+    export type DetectInvestigationCommunitiesMutationError = unknown
+
+    /**
+ * @summary Run bounded structural community detection over stored relationships
+ */
+export const useDetectInvestigationCommunities = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof detectInvestigationCommunities>>, TError,{id: string;data?: CommunityRunInput}, TContext>, fetch?: RequestInit}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof detectInvestigationCommunities>>,
+        TError,
+        {id: string;data?: CommunityRunInput},
+        TContext
+      > => {
+      return useMutation(getDetectInvestigationCommunitiesMutationOptions(options));
+    }
+
+export const getAnalyzeInvestigationDefiMevUrl = (id: string,) => {
+
+
+
+
+  return `/api/v1/investigations/${id}/defi-mev-analysis`
+}
+
+/**
+ * @summary Run historical DeFi and MEV-candidate analysis over stored facts
+ */
+export const analyzeInvestigationDefiMev = async (id: string, options?: RequestInit): Promise<DefiMevAnalysis> => {
+
+  const res = await fetch(getAnalyzeInvestigationDefiMevUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: DefiMevAnalysis = body ? JSON.parse(body) : {}
+  return data
+}
+
+
+
+
+
+export const getAnalyzeInvestigationDefiMevMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof analyzeInvestigationDefiMev>>, TError,{id: string}, TContext>, fetch?: RequestInit}
+): UseMutationOptions<Awaited<ReturnType<typeof analyzeInvestigationDefiMev>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['analyzeInvestigationDefiMev'];
+const {mutation: mutationOptions, fetch: fetchOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, fetch: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof analyzeInvestigationDefiMev>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  analyzeInvestigationDefiMev(id,fetchOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AnalyzeInvestigationDefiMevMutationResult = NonNullable<Awaited<ReturnType<typeof analyzeInvestigationDefiMev>>>
+
+    export type AnalyzeInvestigationDefiMevMutationError = unknown
+
+    /**
+ * @summary Run historical DeFi and MEV-candidate analysis over stored facts
+ */
+export const useAnalyzeInvestigationDefiMev = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof analyzeInvestigationDefiMev>>, TError,{id: string}, TContext>, fetch?: RequestInit}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof analyzeInvestigationDefiMev>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getAnalyzeInvestigationDefiMevMutationOptions(options));
+    }
+
+export const getGenerateInvestigationForensicReportUrl = (id: string,) => {
+
+
+
+
+  return `/api/v1/investigations/${id}/reports`
+}
+
+/**
+ * @summary Generate and persist a case-scoped forensic report
+ */
+export const generateInvestigationForensicReport = async (id: string,
+    forensicReportInput?: ForensicReportInput, options?: RequestInit): Promise<ForensicReport> => {
+
+  const res = await fetch(getGenerateInvestigationForensicReportUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(forensicReportInput)
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: ForensicReport = body ? JSON.parse(body) : {}
+  return data
+}
+
+
+
+
+
+export const getGenerateInvestigationForensicReportMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateInvestigationForensicReport>>, TError,{id: string;data?: ForensicReportInput}, TContext>, fetch?: RequestInit}
+): UseMutationOptions<Awaited<ReturnType<typeof generateInvestigationForensicReport>>, TError,{id: string;data?: ForensicReportInput}, TContext> => {
+
+const mutationKey = ['generateInvestigationForensicReport'];
+const {mutation: mutationOptions, fetch: fetchOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, fetch: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof generateInvestigationForensicReport>>, {id: string;data?: ForensicReportInput}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  generateInvestigationForensicReport(id,data,fetchOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GenerateInvestigationForensicReportMutationResult = NonNullable<Awaited<ReturnType<typeof generateInvestigationForensicReport>>>
+    export type GenerateInvestigationForensicReportMutationBody = ForensicReportInput | undefined
+    export type GenerateInvestigationForensicReportMutationError = unknown
+
+    /**
+ * @summary Generate and persist a case-scoped forensic report
+ */
+export const useGenerateInvestigationForensicReport = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateInvestigationForensicReport>>, TError,{id: string;data?: ForensicReportInput}, TContext>, fetch?: RequestInit}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof generateInvestigationForensicReport>>,
+        TError,
+        {id: string;data?: ForensicReportInput},
+        TContext
+      > => {
+      return useMutation(getGenerateInvestigationForensicReportMutationOptions(options));
+    }
+
+export const getGetInvestigationForensicReportUrl = (id: string,
+    resourceId: string,) => {
+
+
+
+
+  return `/api/v1/investigations/${id}/reports/${resourceId}`
+}
+
+/**
+ * @summary Read one case-scoped persisted forensic report
+ */
+export const getInvestigationForensicReport = async (id: string,
+    resourceId: string, options?: RequestInit): Promise<ForensicReport> => {
+
+  const res = await fetch(getGetInvestigationForensicReportUrl(id,resourceId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: ForensicReport = body ? JSON.parse(body) : {}
+  return data
+}
+
+
+
+
+
+export const getGetInvestigationForensicReportQueryKey = (id: string,
+    resourceId: string,) => {
+    return [
+    `/api/v1/investigations/${id}/reports/${resourceId}`
+    ] as const;
+    }
+
+
+export const getGetInvestigationForensicReportQueryOptions = <TData = Awaited<ReturnType<typeof getInvestigationForensicReport>>, TError = unknown>(id: string,
+    resourceId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getInvestigationForensicReport>>, TError, TData>, fetch?: RequestInit}
+) => {
+
+const {query: queryOptions, fetch: fetchOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetInvestigationForensicReportQueryKey(id,resourceId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getInvestigationForensicReport>>> = ({ signal }) => getInvestigationForensicReport(id,resourceId, { signal, ...fetchOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined && resourceId !== null && resourceId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getInvestigationForensicReport>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetInvestigationForensicReportQueryResult = NonNullable<Awaited<ReturnType<typeof getInvestigationForensicReport>>>
+export type GetInvestigationForensicReportQueryError = unknown
+
+
+/**
+ * @summary Read one case-scoped persisted forensic report
+ */
+
+export function useGetInvestigationForensicReport<TData = Awaited<ReturnType<typeof getInvestigationForensicReport>>, TError = unknown>(
+ id: string,
+    resourceId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getInvestigationForensicReport>>, TError, TData>, fetch?: RequestInit}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetInvestigationForensicReportQueryOptions(id,resourceId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getTraceInvestigationGraphUrl = (id: string,
     params?: TraceInvestigationGraphParams,) => {
   const normalizedParams = new URLSearchParams();
@@ -2606,22 +3285,31 @@ export const useReviewInvestigationVaspCandidate = <TError = unknown,
       return useMutation(getReviewInvestigationVaspCandidateMutationOptions(options));
     }
 
-export const getGetLiveWalletProfileUrl = (chain: 'BITCOIN' | 'ETHEREUM' | 'TRON',
-    address: string,) => {
+export const getGetLiveWalletProfileUrl = (chain: 'BITCOIN' | 'ETHEREUM' | 'TRON' | 'BNB_CHAIN' | 'POLYGON' | 'SOLANA' | 'OTHER',
+    address: string,
+    params: GetLiveWalletProfileParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/v1/wallets/${chain}/${address}`
+  return stringifiedParams.length > 0 ? `/api/v1/wallets/${chain}/${address}?${stringifiedParams}` : `/api/v1/wallets/${chain}/${address}`
 }
 
 /**
  * @summary Read normalized wallet facts through an authorized provider adapter
  */
-export const getLiveWalletProfile = async (chain: 'BITCOIN' | 'ETHEREUM' | 'TRON',
-    address: string, options?: RequestInit): Promise<LiveWalletResult> => {
+export const getLiveWalletProfile = async (chain: 'BITCOIN' | 'ETHEREUM' | 'TRON' | 'BNB_CHAIN' | 'POLYGON' | 'SOLANA' | 'OTHER',
+    address: string,
+    params: GetLiveWalletProfileParams, options?: RequestInit): Promise<LiveWalletResult> => {
 
-  const res = await fetch(getGetLiveWalletProfileUrl(chain,address),
+  const res = await fetch(getGetLiveWalletProfileUrl(chain,address,params),
   {
     ...options,
     method: 'GET'
@@ -2641,25 +3329,27 @@ export const getLiveWalletProfile = async (chain: 'BITCOIN' | 'ETHEREUM' | 'TRON
 
 
 
-export const getGetLiveWalletProfileQueryKey = (chain: 'BITCOIN' | 'ETHEREUM' | 'TRON',
-    address: string,) => {
+export const getGetLiveWalletProfileQueryKey = (chain: 'BITCOIN' | 'ETHEREUM' | 'TRON' | 'BNB_CHAIN' | 'POLYGON' | 'SOLANA' | 'OTHER',
+    address: string,
+    params?: GetLiveWalletProfileParams,) => {
     return [
-    `/api/v1/wallets/${chain}/${address}`
+    `/api/v1/wallets/${chain}/${address}`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getGetLiveWalletProfileQueryOptions = <TData = Awaited<ReturnType<typeof getLiveWalletProfile>>, TError = unknown>(chain: 'BITCOIN' | 'ETHEREUM' | 'TRON',
-    address: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLiveWalletProfile>>, TError, TData>, fetch?: RequestInit}
+export const getGetLiveWalletProfileQueryOptions = <TData = Awaited<ReturnType<typeof getLiveWalletProfile>>, TError = unknown>(chain: 'BITCOIN' | 'ETHEREUM' | 'TRON' | 'BNB_CHAIN' | 'POLYGON' | 'SOLANA' | 'OTHER',
+    address: string,
+    params: GetLiveWalletProfileParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLiveWalletProfile>>, TError, TData>, fetch?: RequestInit}
 ) => {
 
 const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetLiveWalletProfileQueryKey(chain,address);
+  const queryKey =  queryOptions?.queryKey ?? getGetLiveWalletProfileQueryKey(chain,address,params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getLiveWalletProfile>>> = ({ signal }) => getLiveWalletProfile(chain,address, { signal, ...fetchOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getLiveWalletProfile>>> = ({ signal }) => getLiveWalletProfile(chain,address,params, { signal, ...fetchOptions });
 
 
 
@@ -2677,12 +3367,13 @@ export type GetLiveWalletProfileQueryError = unknown
  */
 
 export function useGetLiveWalletProfile<TData = Awaited<ReturnType<typeof getLiveWalletProfile>>, TError = unknown>(
- chain: 'BITCOIN' | 'ETHEREUM' | 'TRON',
-    address: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLiveWalletProfile>>, TError, TData>, fetch?: RequestInit}
+ chain: 'BITCOIN' | 'ETHEREUM' | 'TRON' | 'BNB_CHAIN' | 'POLYGON' | 'SOLANA' | 'OTHER',
+    address: string,
+    params: GetLiveWalletProfileParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLiveWalletProfile>>, TError, TData>, fetch?: RequestInit}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getGetLiveWalletProfileQueryOptions(chain,address,options)
+  const queryOptions = getGetLiveWalletProfileQueryOptions(chain,address,params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -2695,22 +3386,31 @@ export function useGetLiveWalletProfile<TData = Awaited<ReturnType<typeof getLiv
 
 
 
-export const getGetLiveTransactionUrl = (chain: 'BITCOIN' | 'ETHEREUM' | 'TRON',
-    txHash: string,) => {
+export const getGetLiveTransactionUrl = (chain: 'BITCOIN' | 'ETHEREUM' | 'TRON' | 'BNB_CHAIN' | 'POLYGON' | 'SOLANA' | 'OTHER',
+    txHash: string,
+    params: GetLiveTransactionParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/v1/transactions/${chain}/${txHash}`
+  return stringifiedParams.length > 0 ? `/api/v1/transactions/${chain}/${txHash}?${stringifiedParams}` : `/api/v1/transactions/${chain}/${txHash}`
 }
 
 /**
  * @summary Read one normalized transaction through an authorized provider adapter
  */
-export const getLiveTransaction = async (chain: 'BITCOIN' | 'ETHEREUM' | 'TRON',
-    txHash: string, options?: RequestInit): Promise<NormalizedTransactionBundle> => {
+export const getLiveTransaction = async (chain: 'BITCOIN' | 'ETHEREUM' | 'TRON' | 'BNB_CHAIN' | 'POLYGON' | 'SOLANA' | 'OTHER',
+    txHash: string,
+    params: GetLiveTransactionParams, options?: RequestInit): Promise<NormalizedTransactionBundle> => {
 
-  const res = await fetch(getGetLiveTransactionUrl(chain,txHash),
+  const res = await fetch(getGetLiveTransactionUrl(chain,txHash,params),
   {
     ...options,
     method: 'GET'
@@ -2730,25 +3430,27 @@ export const getLiveTransaction = async (chain: 'BITCOIN' | 'ETHEREUM' | 'TRON',
 
 
 
-export const getGetLiveTransactionQueryKey = (chain: 'BITCOIN' | 'ETHEREUM' | 'TRON',
-    txHash: string,) => {
+export const getGetLiveTransactionQueryKey = (chain: 'BITCOIN' | 'ETHEREUM' | 'TRON' | 'BNB_CHAIN' | 'POLYGON' | 'SOLANA' | 'OTHER',
+    txHash: string,
+    params?: GetLiveTransactionParams,) => {
     return [
-    `/api/v1/transactions/${chain}/${txHash}`
+    `/api/v1/transactions/${chain}/${txHash}`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getGetLiveTransactionQueryOptions = <TData = Awaited<ReturnType<typeof getLiveTransaction>>, TError = unknown>(chain: 'BITCOIN' | 'ETHEREUM' | 'TRON',
-    txHash: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLiveTransaction>>, TError, TData>, fetch?: RequestInit}
+export const getGetLiveTransactionQueryOptions = <TData = Awaited<ReturnType<typeof getLiveTransaction>>, TError = unknown>(chain: 'BITCOIN' | 'ETHEREUM' | 'TRON' | 'BNB_CHAIN' | 'POLYGON' | 'SOLANA' | 'OTHER',
+    txHash: string,
+    params: GetLiveTransactionParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLiveTransaction>>, TError, TData>, fetch?: RequestInit}
 ) => {
 
 const {query: queryOptions, fetch: fetchOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetLiveTransactionQueryKey(chain,txHash);
+  const queryKey =  queryOptions?.queryKey ?? getGetLiveTransactionQueryKey(chain,txHash,params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getLiveTransaction>>> = ({ signal }) => getLiveTransaction(chain,txHash, { signal, ...fetchOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getLiveTransaction>>> = ({ signal }) => getLiveTransaction(chain,txHash,params, { signal, ...fetchOptions });
 
 
 
@@ -2766,12 +3468,13 @@ export type GetLiveTransactionQueryError = unknown
  */
 
 export function useGetLiveTransaction<TData = Awaited<ReturnType<typeof getLiveTransaction>>, TError = unknown>(
- chain: 'BITCOIN' | 'ETHEREUM' | 'TRON',
-    txHash: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLiveTransaction>>, TError, TData>, fetch?: RequestInit}
+ chain: 'BITCOIN' | 'ETHEREUM' | 'TRON' | 'BNB_CHAIN' | 'POLYGON' | 'SOLANA' | 'OTHER',
+    txHash: string,
+    params: GetLiveTransactionParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLiveTransaction>>, TError, TData>, fetch?: RequestInit}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getGetLiveTransactionQueryOptions(chain,txHash,options)
+  const queryOptions = getGetLiveTransactionQueryOptions(chain,txHash,params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

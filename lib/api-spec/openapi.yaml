@@ -266,6 +266,65 @@ paths:
       summary: Collect authorized live blockchain facts and persist normalized results
       parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
       responses: { "200": { description: Collection result, content: { application/json: { schema: { $ref: "#/components/schemas/CollectionResult" } } } } }
+  /v1/investigations/{id}/risk-analysis:
+    post:
+      operationId: executeInvestigationRiskAnalysis
+      tags: [cashnet]
+      summary: Execute bounded AML/risk analysis over stored case-scoped facts
+      parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses: { "200": { description: Persisted heuristic assessment; not a probability or proof, content: { application/json: { schema: { $ref: "#/components/schemas/RiskAnalysisRun" } } } } }
+  /v1/investigations/{id}/risk-indicators:
+    get:
+      operationId: listInvestigationRiskIndicators
+      tags: [cashnet]
+      summary: List case-scoped persisted risk indicators
+      parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }, { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 100 } }]
+      responses: { "200": { description: Risk indicators, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/RiskIndicator" } } } } } }
+  /v1/investigations/{id}/risk-indicators/{resourceId}:
+    get:
+      operationId: getInvestigationRiskIndicator
+      tags: [cashnet]
+      summary: Get one case-scoped risk indicator
+      parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }, { name: resourceId, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses: { "200": { description: Risk indicator, content: { application/json: { schema: { $ref: "#/components/schemas/RiskIndicator" } } } } }
+  /v1/investigations/{id}/graph-features:
+    post:
+      operationId: computeInvestigationGraphFeatures
+      tags: [cashnet]
+      summary: Compute bounded graph features from stored relationships
+      parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+      requestBody: { required: false, content: { application/json: { schema: { $ref: "#/components/schemas/GraphFeatureRunInput" } } } }
+      responses: { "200": { description: Persisted graph features, content: { application/json: { schema: { $ref: "#/components/schemas/GraphFeatureRun" } } } } }
+  /v1/investigations/{id}/communities:
+    post:
+      operationId: detectInvestigationCommunities
+      tags: [cashnet]
+      summary: Run bounded structural community detection over stored relationships
+      parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+      requestBody: { required: false, content: { application/json: { schema: { $ref: "#/components/schemas/CommunityRunInput" } } } }
+      responses: { "200": { description: Persisted structural communities; not ownership attribution, content: { application/json: { schema: { $ref: "#/components/schemas/CommunityRun" } } } } }
+  /v1/investigations/{id}/defi-mev-analysis:
+    post:
+      operationId: analyzeInvestigationDefiMev
+      tags: [cashnet]
+      summary: Run historical DeFi and MEV-candidate analysis over stored facts
+      parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses: { "200": { description: Historical candidates only; not real-time mempool monitoring or proof, content: { application/json: { schema: { $ref: "#/components/schemas/DefiMevAnalysis" } } } } }
+  /v1/investigations/{id}/reports:
+    post:
+      operationId: generateInvestigationForensicReport
+      tags: [cashnet]
+      summary: Generate and persist a case-scoped forensic report
+      parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+      requestBody: { required: false, content: { application/json: { schema: { $ref: "#/components/schemas/ForensicReportInput" } } } }
+      responses: { "201": { description: Persisted report, content: { application/json: { schema: { $ref: "#/components/schemas/ForensicReport" } } } } }
+  /v1/investigations/{id}/reports/{resourceId}:
+    get:
+      operationId: getInvestigationForensicReport
+      tags: [cashnet]
+      summary: Read one case-scoped persisted forensic report
+      parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }, { name: resourceId, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses: { "200": { description: Report, content: { application/json: { schema: { $ref: "#/components/schemas/ForensicReport" } } } } }
   /v1/investigations/{id}/graph:
     get:
       operationId: traceInvestigationGraph
@@ -337,8 +396,9 @@ paths:
       tags: [cashnet]
       summary: Read normalized wallet facts through an authorized provider adapter
       parameters:
-        - { name: chain, in: path, required: true, schema: { type: string, enum: [BITCOIN, ETHEREUM, TRON] } }
+        - { name: chain, in: path, required: true, schema: { type: string, enum: [BITCOIN, ETHEREUM, TRON, BNB_CHAIN, POLYGON, SOLANA, OTHER] } }
         - { name: address, in: path, required: true, schema: { type: string } }
+        - { name: investigation_id, in: query, required: true, schema: { type: string, format: uuid }, description: Authorized investigation scope; a valid actor alone is insufficient. }
       responses: { "200": { description: Normalized provider result, content: { application/json: { schema: { $ref: "#/components/schemas/LiveWalletResult" } } } } }
   /v1/transactions/{chain}/{txHash}:
     get:
@@ -346,8 +406,9 @@ paths:
       tags: [cashnet]
       summary: Read one normalized transaction through an authorized provider adapter
       parameters:
-        - { name: chain, in: path, required: true, schema: { type: string, enum: [BITCOIN, ETHEREUM, TRON] } }
+        - { name: chain, in: path, required: true, schema: { type: string, enum: [BITCOIN, ETHEREUM, TRON, BNB_CHAIN, POLYGON, SOLANA, OTHER] } }
         - { name: txHash, in: path, required: true, schema: { type: string } }
+        - { name: investigation_id, in: query, required: true, schema: { type: string, format: uuid }, description: Authorized investigation scope; a valid actor alone is insufficient. }
       responses: { "200": { description: Normalized transaction, content: { application/json: { schema: { $ref: "#/components/schemas/NormalizedTransactionBundle" } } } } }
   /v1/evidence:
     post:
@@ -1017,5 +1078,85 @@ components:
         reviewerId: { type: string }
         decision: { type: string, enum: [ACCEPTED, REJECTED, CONFIRMED] }
         rationale: { type: [string, "null"] }
+        createdAt: { type: string, format: date-time }
+    RiskIndicator:
+      type: object
+      required: [id, caseId, investigationId, indicatorType, category, severity, scoreContribution, scoreSemantics, method, methodVersion, provenance, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        caseId: { type: string, format: uuid }
+        investigationId: { type: string, format: uuid }
+        indicatorType: { type: string }
+        category: { type: string }
+        severity: { type: string, enum: [LOW, MEDIUM, HIGH, CRITICAL] }
+        scoreContribution: { type: number }
+        scoreSemantics: { type: string, enum: [HEURISTIC_SCORE_NOT_PROBABILITY] }
+        confidenceLevel: { type: [string, "null"] }
+        evidence: { type: array, items: { type: object, additionalProperties: true } }
+        provenance: { type: object, additionalProperties: true }
+        method: { type: string }
+        methodVersion: { type: string }
+        createdAt: { type: string, format: date-time }
+    RiskAnalysisRun:
+      type: object
+      required: [run, indicators, typologies, scoreSemantics]
+      properties:
+        run: { type: object, additionalProperties: true }
+        indicators: { type: array, items: { $ref: "#/components/schemas/RiskIndicator" } }
+        typologies: { type: array, items: { type: object, additionalProperties: true } }
+        scoreSemantics: { type: string, enum: [HEURISTIC_SCORE_NOT_PROBABILITY] }
+    GraphFeatureRunInput:
+      type: object
+      additionalProperties: false
+      properties: { max_edges: { type: integer, minimum: 1, maximum: 10000, default: 10000 } }
+    GraphFeatureRun:
+      type: object
+      required: [features, edgeCount, method, methodVersion, maxEdges]
+      properties:
+        features: { type: array, items: { type: object, additionalProperties: true } }
+        edgeCount: { type: integer }
+        method: { type: string }
+        methodVersion: { type: string }
+        maxEdges: { type: integer }
+    CommunityRunInput:
+      type: object
+      additionalProperties: false
+      properties:
+        max_nodes: { type: integer, minimum: 1, maximum: 10000, default: 10000 }
+        max_edges: { type: integer, minimum: 1, maximum: 10000, default: 10000 }
+        max_runtime_ms: { type: integer, minimum: 100, maximum: 5000, default: 5000 }
+        max_communities: { type: integer, minimum: 1, maximum: 500, default: 100 }
+    CommunityRun:
+      type: object
+      required: [run, communities, totalNodes, totalEdges, limits]
+      properties:
+        run: { type: object, additionalProperties: true }
+        communities: { type: array, items: { type: object, additionalProperties: true } }
+        totalNodes: { type: integer }
+        totalEdges: { type: integer }
+        limits: { type: object, additionalProperties: true }
+    DefiMevAnalysis:
+      type: object
+      required: [interactions, mev, historicalOnly, disclaimer]
+      properties:
+        interactions: { type: array, items: { type: object, additionalProperties: true } }
+        mev: { type: object, additionalProperties: true }
+        historicalOnly: { type: boolean, const: true }
+        disclaimer: { type: string }
+    ForensicReportInput:
+      type: object
+      additionalProperties: false
+      properties:
+        report_type: { type: string, enum: [INVESTIGATION_SUMMARY, RISK_ASSESSMENT, GRAPH_ANALYSIS, FULL_FORENSIC], default: INVESTIGATION_SUMMARY }
+    ForensicReport:
+      type: object
+      required: [id, caseId, investigationId, reportType, content, methodVersions, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        caseId: { type: string, format: uuid }
+        investigationId: { type: string, format: uuid }
+        reportType: { type: string }
+        content: { type: object, additionalProperties: true }
+        methodVersions: { type: object, additionalProperties: { type: string } }
         createdAt: { type: string, format: date-time }
 

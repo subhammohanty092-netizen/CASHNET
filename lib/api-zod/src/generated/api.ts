@@ -1045,6 +1045,218 @@ export const CollectInvestigationProviderDataResponse = zod.object({
 
 
 /**
+ * @summary Execute bounded AML/risk analysis over stored case-scoped facts
+ */
+export const ExecuteInvestigationRiskAnalysisParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const ExecuteInvestigationRiskAnalysisResponse = zod.object({
+  "run": zod.record(zod.string(), zod.unknown()),
+  "indicators": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "caseId": zod.string().uuid(),
+  "investigationId": zod.string().uuid(),
+  "indicatorType": zod.string(),
+  "category": zod.string(),
+  "severity": zod.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']),
+  "scoreContribution": zod.number(),
+  "scoreSemantics": zod.enum(['HEURISTIC_SCORE_NOT_PROBABILITY']),
+  "confidenceLevel": zod.string().nullish(),
+  "evidence": zod.array(zod.record(zod.string(), zod.unknown())).optional(),
+  "provenance": zod.record(zod.string(), zod.unknown()),
+  "method": zod.string(),
+  "methodVersion": zod.string(),
+  "createdAt": zod.coerce.date()
+})),
+  "typologies": zod.array(zod.record(zod.string(), zod.unknown())),
+  "scoreSemantics": zod.enum(['HEURISTIC_SCORE_NOT_PROBABILITY'])
+})
+
+
+/**
+ * @summary List case-scoped persisted risk indicators
+ */
+export const ListInvestigationRiskIndicatorsParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const listInvestigationRiskIndicatorsQueryLimitDefault = 100;
+export const listInvestigationRiskIndicatorsQueryLimitMax = 100;
+
+
+
+export const ListInvestigationRiskIndicatorsQueryParams = zod.object({
+  "limit": zod.coerce.number().int().min(1).max(listInvestigationRiskIndicatorsQueryLimitMax).default(listInvestigationRiskIndicatorsQueryLimitDefault)
+})
+
+export const ListInvestigationRiskIndicatorsResponseItem = zod.object({
+  "id": zod.string().uuid(),
+  "caseId": zod.string().uuid(),
+  "investigationId": zod.string().uuid(),
+  "indicatorType": zod.string(),
+  "category": zod.string(),
+  "severity": zod.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']),
+  "scoreContribution": zod.number(),
+  "scoreSemantics": zod.enum(['HEURISTIC_SCORE_NOT_PROBABILITY']),
+  "confidenceLevel": zod.string().nullish(),
+  "evidence": zod.array(zod.record(zod.string(), zod.unknown())).optional(),
+  "provenance": zod.record(zod.string(), zod.unknown()),
+  "method": zod.string(),
+  "methodVersion": zod.string(),
+  "createdAt": zod.coerce.date()
+})
+export const ListInvestigationRiskIndicatorsResponse = zod.array(ListInvestigationRiskIndicatorsResponseItem)
+
+
+/**
+ * @summary Get one case-scoped risk indicator
+ */
+export const GetInvestigationRiskIndicatorParams = zod.object({
+  "id": zod.coerce.string().uuid(),
+  "resourceId": zod.coerce.string().uuid()
+})
+
+export const GetInvestigationRiskIndicatorResponse = zod.object({
+  "id": zod.string().uuid(),
+  "caseId": zod.string().uuid(),
+  "investigationId": zod.string().uuid(),
+  "indicatorType": zod.string(),
+  "category": zod.string(),
+  "severity": zod.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']),
+  "scoreContribution": zod.number(),
+  "scoreSemantics": zod.enum(['HEURISTIC_SCORE_NOT_PROBABILITY']),
+  "confidenceLevel": zod.string().nullish(),
+  "evidence": zod.array(zod.record(zod.string(), zod.unknown())).optional(),
+  "provenance": zod.record(zod.string(), zod.unknown()),
+  "method": zod.string(),
+  "methodVersion": zod.string(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Compute bounded graph features from stored relationships
+ */
+export const ComputeInvestigationGraphFeaturesParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const computeInvestigationGraphFeaturesBodyMaxEdgesDefault = 10000;
+export const computeInvestigationGraphFeaturesBodyMaxEdgesMax = 10000;
+
+
+
+export const ComputeInvestigationGraphFeaturesBody = zod.object({
+  "max_edges": zod.number().int().min(1).max(computeInvestigationGraphFeaturesBodyMaxEdgesMax).default(computeInvestigationGraphFeaturesBodyMaxEdgesDefault)
+})
+
+export const ComputeInvestigationGraphFeaturesResponse = zod.object({
+  "features": zod.array(zod.record(zod.string(), zod.unknown())),
+  "edgeCount": zod.number().int(),
+  "method": zod.string(),
+  "methodVersion": zod.string(),
+  "maxEdges": zod.number().int()
+})
+
+
+/**
+ * @summary Run bounded structural community detection over stored relationships
+ */
+export const DetectInvestigationCommunitiesParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const detectInvestigationCommunitiesBodyMaxNodesDefault = 10000;
+export const detectInvestigationCommunitiesBodyMaxNodesMax = 10000;
+
+export const detectInvestigationCommunitiesBodyMaxEdgesDefault = 10000;
+export const detectInvestigationCommunitiesBodyMaxEdgesMax = 10000;
+
+export const detectInvestigationCommunitiesBodyMaxRuntimeMsDefault = 5000;
+export const detectInvestigationCommunitiesBodyMaxRuntimeMsMin = 100;
+export const detectInvestigationCommunitiesBodyMaxRuntimeMsMax = 5000;
+
+export const detectInvestigationCommunitiesBodyMaxCommunitiesDefault = 100;
+export const detectInvestigationCommunitiesBodyMaxCommunitiesMax = 500;
+
+
+
+export const DetectInvestigationCommunitiesBody = zod.object({
+  "max_nodes": zod.number().int().min(1).max(detectInvestigationCommunitiesBodyMaxNodesMax).default(detectInvestigationCommunitiesBodyMaxNodesDefault),
+  "max_edges": zod.number().int().min(1).max(detectInvestigationCommunitiesBodyMaxEdgesMax).default(detectInvestigationCommunitiesBodyMaxEdgesDefault),
+  "max_runtime_ms": zod.number().int().min(detectInvestigationCommunitiesBodyMaxRuntimeMsMin).max(detectInvestigationCommunitiesBodyMaxRuntimeMsMax).default(detectInvestigationCommunitiesBodyMaxRuntimeMsDefault),
+  "max_communities": zod.number().int().min(1).max(detectInvestigationCommunitiesBodyMaxCommunitiesMax).default(detectInvestigationCommunitiesBodyMaxCommunitiesDefault)
+})
+
+export const DetectInvestigationCommunitiesResponse = zod.object({
+  "run": zod.record(zod.string(), zod.unknown()),
+  "communities": zod.array(zod.record(zod.string(), zod.unknown())),
+  "totalNodes": zod.number().int(),
+  "totalEdges": zod.number().int(),
+  "limits": zod.record(zod.string(), zod.unknown())
+})
+
+
+/**
+ * @summary Run historical DeFi and MEV-candidate analysis over stored facts
+ */
+export const AnalyzeInvestigationDefiMevParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const AnalyzeInvestigationDefiMevResponse = zod.object({
+  "interactions": zod.array(zod.record(zod.string(), zod.unknown())),
+  "mev": zod.record(zod.string(), zod.unknown()),
+  "historicalOnly": zod.literal(true),
+  "disclaimer": zod.string()
+})
+
+
+/**
+ * @summary Generate and persist a case-scoped forensic report
+ */
+export const GenerateInvestigationForensicReportParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const generateInvestigationForensicReportBodyReportTypeDefault = `INVESTIGATION_SUMMARY`;
+
+export const GenerateInvestigationForensicReportBody = zod.object({
+  "report_type": zod.enum(['INVESTIGATION_SUMMARY', 'RISK_ASSESSMENT', 'GRAPH_ANALYSIS', 'FULL_FORENSIC']).default(generateInvestigationForensicReportBodyReportTypeDefault)
+})
+
+export const GenerateInvestigationForensicReportResponse = zod.object({
+  "id": zod.string().uuid(),
+  "caseId": zod.string().uuid(),
+  "investigationId": zod.string().uuid(),
+  "reportType": zod.string(),
+  "content": zod.record(zod.string(), zod.unknown()),
+  "methodVersions": zod.record(zod.string(), zod.string()),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Read one case-scoped persisted forensic report
+ */
+export const GetInvestigationForensicReportParams = zod.object({
+  "id": zod.coerce.string().uuid(),
+  "resourceId": zod.coerce.string().uuid()
+})
+
+export const GetInvestigationForensicReportResponse = zod.object({
+  "id": zod.string().uuid(),
+  "caseId": zod.string().uuid(),
+  "investigationId": zod.string().uuid(),
+  "reportType": zod.string(),
+  "content": zod.record(zod.string(), zod.unknown()),
+  "methodVersions": zod.record(zod.string(), zod.string()),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
  * @summary Trace stored blockchain relationships with bounded BFS
  */
 export const TraceInvestigationGraphZodParams = zod.object({
@@ -1402,8 +1614,12 @@ export const ReviewInvestigationVaspCandidateResponse = zod.object({
  * @summary Read normalized wallet facts through an authorized provider adapter
  */
 export const GetLiveWalletProfileParams = zod.object({
-  "chain": zod.enum(['BITCOIN', 'ETHEREUM', 'TRON']),
+  "chain": zod.enum(['BITCOIN', 'ETHEREUM', 'TRON', 'BNB_CHAIN', 'POLYGON', 'SOLANA', 'OTHER']),
   "address": zod.coerce.string()
+})
+
+export const GetLiveWalletProfileQueryParams = zod.object({
+  "investigation_id": zod.coerce.string().uuid().describe('Authorized investigation scope; a valid actor alone is insufficient.')
 })
 
 export const GetLiveWalletProfileResponse = zod.object({
@@ -1435,8 +1651,12 @@ export const GetLiveWalletProfileResponse = zod.object({
  * @summary Read one normalized transaction through an authorized provider adapter
  */
 export const GetLiveTransactionParams = zod.object({
-  "chain": zod.enum(['BITCOIN', 'ETHEREUM', 'TRON']),
+  "chain": zod.enum(['BITCOIN', 'ETHEREUM', 'TRON', 'BNB_CHAIN', 'POLYGON', 'SOLANA', 'OTHER']),
   "txHash": zod.coerce.string()
+})
+
+export const GetLiveTransactionQueryParams = zod.object({
+  "investigation_id": zod.coerce.string().uuid().describe('Authorized investigation scope; a valid actor alone is insufficient.')
 })
 
 export const GetLiveTransactionResponse = zod.object({
