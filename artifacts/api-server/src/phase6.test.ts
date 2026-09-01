@@ -14,6 +14,7 @@ import { generateKeyPairSync, sign } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { JWTAuthenticator } from "./services/auth/jwt-authenticator";
 import { TronGridProvider } from "./services/blockchain/trongrid-provider";
+import { CaseService } from "./services/cases/case-service";
 
 // ── Test helpers ────────────────────────────────────────────────────────────
 
@@ -71,6 +72,39 @@ test("Phase 6.3 community detection respects bounded execution", () => {
   const edges = Array.from({ length: 100 }, (_, i) => edge(`e${i}`, `addr${i}`, `addr${i + 1}`));
   const result = service.detectCommunities(edges, { maxNodes: 10 });
   assert.ok(result.totalNodes <= 11, "Should be bounded");
+});
+
+test("Phase 6.3 graph features retain the investigation chain when the stored graph is empty", async () => {
+  const service = new GraphFeatureService();
+  const repos = {
+    graph: { listByCaseAndChain: async () => [] },
+  } as never;
+  const result = await service.computeFeatures(repos, "case-a", "ETHEREUM", "0xEmpty", 1);
+  assert.ok(result.features.length > 0);
+  assert.ok(result.features.every((feature) => feature.chain === "ETHEREUM"));
+});
+
+test("Phase 6 case approval requires the distinct CASE_AUTHORIZE permission and audits the approval", async () => {
+  const permissions: string[] = [];
+  const auditActions: string[] = [];
+  const record = {
+    id: "case-a", caseNumber: "CASE-A", title: "test", description: "test", fraudType: "OTHER", reportedAmount: "0",
+    status: "OPEN" as const, priority: "MEDIUM", investigationAuthorizationStatus: "PENDING" as const,
+    createdBy: "actor-a", assignedTo: "actor-a", closedAt: null, createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+  };
+  const repositories = {
+    cases: { update: async () => ({ ...record, investigationAuthorizationStatus: "APPROVED" as const }) },
+    audit: { append: async (event: { action: string }) => { auditActions.push(event.action); } },
+  } as never;
+  const authorization = {
+    requireCaseAccess: async () => record,
+    requirePermission: async (_actor: unknown, permission: string) => { permissions.push(permission); },
+  } as never;
+  const transactions = { transaction: async (fn: (repos: never) => Promise<unknown>) => fn(repositories) } as never;
+  const service = new CaseService(repositories, transactions, authorization);
+  await service.update({ id: "actor-a", username: "supervisor", roles: ["SUPERVISOR"], permissions: ["CASE_UPDATE", "CASE_AUTHORIZE"] }, "case-a", { investigationAuthorizationStatus: "APPROVED" }, "request-a");
+  assert.ok(permissions.includes("CASE_AUTHORIZE"));
+  assert.deepEqual(auditActions, ["CASE_AUTHORIZATION_UPDATED"]);
 });
 
 // ── Phase 6.4: DeFi Interaction ─────────────────────────────────────────────
@@ -236,12 +270,13 @@ test("TronGrid transaction lookup uses the shared injected HTTP client POST path
   assert.equal(capturedMethod, "POST");
 });
 
-test("Phase 6 migrations evolve the legacy risk table and use an expression index for canonical addresses", async () => {
+test("Phase 6 migrations evolve legacy schemas and preserve graph-feature chain provenance", async () => {
   const root = new URL("../../../", import.meta.url);
-  const [risk, graph, compatibility, runner] = await Promise.all([
+  const [risk, graph, compatibility, chainRepair, runner] = await Promise.all([
     readFile(new URL("database/migrations/20260901_phase6_risk.sql", root), "utf8"),
     readFile(new URL("database/migrations/20260901_phase6_graph.sql", root), "utf8"),
     readFile(new URL("database/migrations/20260902_phase6_operational_compatibility.sql", root), "utf8"),
+    readFile(new URL("database/migrations/20260903_phase6_graph_feature_chain_integrity.sql", root), "utf8"),
     readFile(new URL("lib/db/src/migrate.ts", root), "utf8"),
   ]);
   assert.match(risk, /ALTER TABLE risk_indicators[\s\S]*ADD COLUMN IF NOT EXISTS run_id/i);
@@ -250,6 +285,9 @@ test("Phase 6 migrations evolve the legacy risk table and use an expression inde
   assert.doesNotMatch(graph, /UNIQUE\s*\([^)]*lower\(address\)/i);
   assert.match(compatibility, /CREATE TABLE IF NOT EXISTS community_analysis_runs/i);
   assert.match(runner, /20260902_phase6_operational_compatibility/);
+  assert.match(runner, /20260903_phase6_graph_feature_chain_integrity/);
+  assert.match(chainRepair, /UPDATE graph_features AS feature[\s\S]*investigation\.chain/i);
+  assert.match(chainRepair, /CHECK \(btrim\(chain\) <> ''\) NOT VALID/i);
 });
 
 test("Phase 6 provider lookups require investigation scope and reject a chain mismatch as validation", async () => {

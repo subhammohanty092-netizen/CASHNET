@@ -34,9 +34,9 @@ export interface GraphFeatureSet {
   methodVersion: string;
 }
 
-type FeatureComputer = (address: string, edges: GraphRelationshipRecord[]) => GraphFeature[];
+type FeatureComputer = (chain: string, address: string, edges: GraphRelationshipRecord[]) => GraphFeature[];
 
-function degreeFeatures(address: string, edges: GraphRelationshipRecord[]): GraphFeature[] {
+function degreeFeatures(chain: string, address: string, edges: GraphRelationshipRecord[]): GraphFeature[] {
   const addr = address.toLowerCase();
   const now = new Date().toISOString();
   const inDegree = new Set(edges.filter((e) => e.toAddress.toLowerCase() === addr).map((e) => e.fromAddress.toLowerCase())).size;
@@ -44,17 +44,15 @@ function degreeFeatures(address: string, edges: GraphRelationshipRecord[]): Grap
   const totalDegree = inDegree + outDegree;
 
   return [
-    { featureId: `${addr}:IN_DEGREE`, chain: edges[0]?.chain ?? "", address, featureType: "IN_DEGREE", value: inDegree, method: METHOD, methodVersion: METHOD_VERSION, scopeDescription: "Unique incoming counterparties", computedAt: now },
-    { featureId: `${addr}:OUT_DEGREE`, chain: edges[0]?.chain ?? "", address, featureType: "OUT_DEGREE", value: outDegree, method: METHOD, methodVersion: METHOD_VERSION, scopeDescription: "Unique outgoing counterparties", computedAt: now },
-    { featureId: `${addr}:TOTAL_DEGREE`, chain: edges[0]?.chain ?? "", address, featureType: "TOTAL_DEGREE", value: totalDegree, method: METHOD, methodVersion: METHOD_VERSION, scopeDescription: "Total unique counterparties (in + out)", computedAt: now },
+    { featureId: `${addr}:IN_DEGREE`, chain, address, featureType: "IN_DEGREE", value: inDegree, method: METHOD, methodVersion: METHOD_VERSION, scopeDescription: "Unique incoming counterparties", computedAt: now },
+    { featureId: `${addr}:OUT_DEGREE`, chain, address, featureType: "OUT_DEGREE", value: outDegree, method: METHOD, methodVersion: METHOD_VERSION, scopeDescription: "Unique outgoing counterparties", computedAt: now },
+    { featureId: `${addr}:TOTAL_DEGREE`, chain, address, featureType: "TOTAL_DEGREE", value: totalDegree, method: METHOD, methodVersion: METHOD_VERSION, scopeDescription: "Total unique counterparties (in + out)", computedAt: now },
   ];
 }
 
-function volumeFeatures(address: string, edges: GraphRelationshipRecord[]): GraphFeature[] {
+function volumeFeatures(chain: string, address: string, edges: GraphRelationshipRecord[]): GraphFeature[] {
   const addr = address.toLowerCase();
   const now = new Date().toISOString();
-  const chain = edges[0]?.chain ?? "";
-
   const inEdges = edges.filter((e) => e.toAddress.toLowerCase() === addr);
   const outEdges = edges.filter((e) => e.fromAddress.toLowerCase() === addr);
 
@@ -68,11 +66,9 @@ function volumeFeatures(address: string, edges: GraphRelationshipRecord[]): Grap
   ];
 }
 
-function temporalFeatures(address: string, edges: GraphRelationshipRecord[]): GraphFeature[] {
+function temporalFeatures(chain: string, address: string, edges: GraphRelationshipRecord[]): GraphFeature[] {
   const addr = address.toLowerCase();
   const now = new Date().toISOString();
-  const chain = edges[0]?.chain ?? "";
-
   const relevantEdges = edges.filter((e) => e.fromAddress.toLowerCase() === addr || e.toAddress.toLowerCase() === addr);
   const timestamps = relevantEdges.map((e) => e.timestamp ? new Date(e.timestamp).getTime() : 0).filter((t) => t > 0).sort((a, b) => a - b);
   if (timestamps.length < 2) return [];
@@ -88,11 +84,9 @@ function temporalFeatures(address: string, edges: GraphRelationshipRecord[]): Gr
   ];
 }
 
-function concentrationFeatures(address: string, edges: GraphRelationshipRecord[]): GraphFeature[] {
+function concentrationFeatures(chain: string, address: string, edges: GraphRelationshipRecord[]): GraphFeature[] {
   const addr = address.toLowerCase();
   const now = new Date().toISOString();
-  const chain = edges[0]?.chain ?? "";
-
   const outEdges = edges.filter((e) => e.fromAddress.toLowerCase() === addr);
   if (outEdges.length < 2) return [];
 
@@ -130,7 +124,7 @@ export class GraphFeatureService {
 
     const features: GraphFeature[] = [];
     for (const computer of ALL_FEATURE_COMPUTERS) {
-      features.push(...computer(address, edges));
+      features.push(...computer(chain, address, edges));
     }
 
     return { address, chain, features, edgeCount: edges.length, method: METHOD, methodVersion: METHOD_VERSION };
