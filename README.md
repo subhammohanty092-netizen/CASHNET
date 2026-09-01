@@ -139,7 +139,7 @@ pnpm --filter @workspace/api-server run build
 git diff --check
 ```
 
-Current local results: typecheck, 13 tests, OpenAPI generation, API build, and diff check pass. Clean-PostgreSQL migration execution and live Etherscan/Esplora/TronGrid smoke tests are pending because this workspace has no configured database or provider credentials.
+Current recorded validation includes typecheck, API/unit tests, OpenAPI generation, API build, and diff checking. The operator-authorised PostgreSQL validator has passed migration execution, idempotency, ledger/catalog checks, and real immutable-audit mutation rejection. Clean-database replay and live Etherscan/Esplora/TronGrid smoke tests remain separate evidence gates; provider results are never fabricated when credentials/endpoints are absent.
 
 ## References, licensing, and roadmap
 

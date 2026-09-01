@@ -18,8 +18,8 @@ The current corrective branch passes TypeScript checking, OpenAPI generation, **
 
 ## Environment status
 
-The running authorised API has database access, but this Codex process has no inherited `DATABASE_URL` or PostgreSQL CLI and therefore cannot safely run direct replay, schema inspection, trigger mutation, or restore testing. No provider credentials/endpoints, Docker CLI, approved dataset, or independent ground-truth corpus was inherited. These gates remain pending rather than claimed as passed.
+The operator's authorised PowerShell session completed the real PostgreSQL validator against `cashnet`: first migration pass, idempotent second pass, complete Phase 0–6 ledger, Phase 6 tables/indexes/constraints/foreign keys, immutable-audit trigger, and real audit `UPDATE`/`DELETE` rejection all passed. This Codex process still does not inherit the secret-bearing connection string, so it does not repeat that command or print the value. Provider credentials/endpoints, Docker CLI/daemon, an approved label dataset, and an independent held-out ground-truth corpus were not supplied to this process; those gates remain precisely classified rather than claimed as passed.
 
 ## Next action
 
-Provision an approved PostgreSQL database and server-only provider credentials, set `DATABASE_URL`, `CASHNET_DATA_MODE=authorized`, and the selected provider variables, then run `pnpm --filter @workspace/db run migrate` followed by `pnpm --filter @workspace/api-server run dev` and the controlled investigation collection flow.
+Run the guarded non-empty analytical validation from the already authorised PowerShell session: `pwsh -File .\scripts\validate-phase6-nonempty.ps1 -ConfirmCreateValidationFixture`. It creates a separately numbered, explicitly marked validation fixture and exercises privileged reporting plus persisted AML, graph, community and historical DeFi/MEV output. Then run the isolated backup/restore drill and any legitimately configured provider collection flows.

@@ -62,7 +62,9 @@ export class ReportGenerator {
       candidateCount: number;
       reviewCount: number;
       contradictionCount: number;
+      auditEventCount: number;
     },
+    reportType: ReportType = "INVESTIGATION_SUMMARY",
   ): ForensicReport {
     const sections: ReportSection[] = [
       {
@@ -72,6 +74,19 @@ export class ReportGenerator {
           { id: "scope-1", description: `${data.transactionCount} transactions collected across ${data.chains.join(", ")}` },
           { id: "scope-2", description: `${data.walletCount} wallet profiles analyzed` },
           { id: "scope-3", description: `${data.graphEdgeCount} graph relationships derived` },
+        ],
+      },
+      {
+        title: "Stored Observations",
+        type: "OBSERVATIONS",
+        items: [
+          {
+            id: "observation-1",
+            description: `${data.graphEdgeCount} stored graph relationship observation(s) were available to this report.`,
+            method: "cashnet-graph-features",
+            methodVersion: "1.0.0",
+            evidence: [`stored_graph_relationships=${data.graphEdgeCount}`],
+          },
         ],
       },
       {
@@ -90,15 +105,21 @@ export class ReportGenerator {
       },
     ];
 
-    if (data.contradictionCount > 0) {
-      sections.push({
-        title: "Contradictions",
-        type: "CONTRADICTIONS",
-        items: [
-          { id: "contra-1", description: `${data.contradictionCount} contradictory evidence item(s) exist. These are preserved and NOT suppressed.` },
-        ],
-      });
-    }
+    sections.push({
+      title: "Contradictions",
+      type: "CONTRADICTIONS",
+      items: [
+        { id: "contra-1", description: `${data.contradictionCount} contradictory evidence item(s) exist. These are preserved and NOT suppressed.` },
+      ],
+    });
+
+    sections.push({
+      title: "Human Review",
+      type: "REVIEW_DECISIONS",
+      items: [
+        { id: "review-1", description: `${data.reviewCount} human review decision(s) are included in the auditable investigation history.`, reviewStatus: "HUMAN_REVIEW_REQUIRED_FOR_CONSEQUENTIAL_DECISIONS" },
+      ],
+    });
 
     sections.push({
       title: "Provenance",
@@ -109,12 +130,20 @@ export class ReportGenerator {
       ],
     });
 
+    sections.push({
+      title: "Audit Trail",
+      type: "AUDIT",
+      items: [
+        { id: "audit-1", description: `${data.auditEventCount} append-only audit event(s) were available when this report was generated.`, method: METHOD, methodVersion: METHOD_VERSION },
+      ],
+    });
+
     return {
       id: crypto.randomUUID(),
       caseId,
       investigationId,
       title: `Investigation Summary — Case ${caseId.slice(0, 8)}`,
-      reportType: "INVESTIGATION_SUMMARY",
+      reportType,
       generatedBy,
       generatedAt: new Date().toISOString(),
       sections,

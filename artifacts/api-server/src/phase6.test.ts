@@ -209,7 +209,7 @@ test("Phase 6.6 report generator produces structured forensic report", () => {
   const report = generator.generateInvestigationSummary("case-1", "inv-1", "user-1", {
     transactionCount: 150, walletCount: 12, chains: ["ETHEREUM", "BNB_CHAIN"],
     riskIndicatorCount: 5, graphEdgeCount: 200, candidateCount: 3,
-    reviewCount: 2, contradictionCount: 1,
+    reviewCount: 2, contradictionCount: 1, auditEventCount: 7,
   });
   assert.equal(report.reportType, "INVESTIGATION_SUMMARY");
   assert.ok(report.sections.length >= 3);
@@ -217,6 +217,9 @@ test("Phase 6.6 report generator produces structured forensic report", () => {
   assert.ok(report.disclaimer.includes("never suppressed"), "Disclaimer must mention contradiction preservation");
   const contradictionSection = report.sections.find((s) => s.type === "CONTRADICTIONS");
   assert.ok(contradictionSection, "Must include contradictions section when contradictions exist");
+  for (const requiredType of ["FACTS", "OBSERVATIONS", "INFERENCES", "ASSESSMENTS", "CONTRADICTIONS", "REVIEW_DECISIONS", "PROVENANCE", "AUDIT"] as const) {
+    assert.ok(report.sections.some((section) => section.type === requiredType), `Report must include ${requiredType}`);
+  }
   assert.ok(report.methodVersions["cashnet-report-generator"]);
   assert.ok(report.methodVersions["cashnet-aml-risk-engine"]);
 });

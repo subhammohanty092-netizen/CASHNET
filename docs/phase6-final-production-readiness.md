@@ -10,10 +10,9 @@
   coverage are present and pass the local software validation suite.
 - `PHASE_6_OPERATIONAL_VALIDATION = CONDITIONAL` — the running authorised API was
   exercised against PostgreSQL for AML, graph features, communities and historical
-  DeFi/MEV analysis. The operator also reported a successful migration replay and
-  idempotent second run. This Codex process does not inherit the connection string,
-  so it could not independently inspect the ledger/catalog, invoke the audit trigger,
-  or perform backup/restore.
+  DeFi/MEV analysis. The operator subsequently completed the real migration, catalog
+  and audit-trigger validator against `cashnet`; remaining release gates are listed
+  below and are not inferred from this database result.
 - `PHASE_6_PRODUCTION_READINESS = BLOCKED` — production readiness requires evidence
   from clean PostgreSQL replay and persistence flows, audit-trigger immutability,
   backup/restore, container execution, CI, deployment probes, and authorised provider
@@ -22,8 +21,9 @@
 
 | Component | Status | Actual execution evidence | Remaining limitation |
 | --- | --- | --- | --- |
-| Migration chain and ledger | OPERATOR_VALIDATED / PENDING_INDEPENDENT_CATALOG_INSPECTION | Operator reported successful corrective-migration application and a second no-op migration run. The runner registers every Phase 6 migration, including the additive chain-provenance and case-authorisation repairs. | This process cannot independently query `cashnet_schema_migrations` without inheriting the connection string. |
-| PostgreSQL persistence | OPERATIONALLY_CONNECTED | `/api/readyz` returned `database: ok`; the authorised API persisted and returned AML, graph-feature and community records for the controlled case. | Direct schema/catalog and transaction inspection remain pending. |
+| Migration chain and ledger | OPERATOR_VALIDATED | The authorised PostgreSQL validator completed its first migration pass and second idempotency pass, and verified the complete Phase 0–6 ledger including corrective migrations. | A clean-database replay remains a separate release-evidence gate. |
+| PostgreSQL catalog | OPERATOR_VALIDATED | The authorised validator verified all ten Phase 6 tables, indexes, constraints and foreign keys, including the Phase 1 `risk_indicators` compatibility design and Phase 6 expression-index design. | A clean-database replay remains a separate release-evidence gate. |
+| PostgreSQL persistence | OPERATIONALLY_CONNECTED | `/api/readyz` returned `database: ok`; the authorised API persisted and returned AML, graph-feature and community records for the controlled case. | Non-empty controlled analytical persistence validation is pending. |
 | AML / risk API | OPERATIONALLY_CONNECTED | `POST /api/v1/investigations/{id}/risk-analysis` returned a persisted completed run in 26 ms with zero indicators, explicit `HEURISTIC_SCORE_NOT_PROBABILITY`, and no fabricated finding. | Direct audit/row inspection and a non-empty stored-fact scenario remain pending. |
 | Graph / community API | OPERATIONALLY_CONNECTED | Bounded HTTP runs returned persisted graph features in 17 ms and a community run in 10 ms against the controlled empty graph; persisted feature rows now correctly retain `chain: ETHEREUM`. | A non-empty stored graph and direct audit/catalog inspection remain pending. |
 | Bitcoin clustering | METHODOLOGY_IMPLEMENTED | Existing clean-room, conservative inference remains Bitcoin-specific and review-required. | No new live Bitcoin collection was available in this task. |
@@ -39,7 +39,8 @@
 | JWT / OIDC | IMPLEMENTED | Generated-key regression test proves valid RS256 verification and rejection of altered signatures; production maps only a verified subject to CASHNET database roles. | A deployed OIDC issuer/JWKS rotation exercise remains pending. |
 | RBAC / case isolation | OPERATIONALLY_CONNECTED | A non-member supervisor received a non-enumerating HTTP 404 for the known case; direct provider lookup rejected absent investigation scope and a chain mismatch with HTTP 400. | Legitimate supervisor membership assignment requires its database UUID through the protected CaseService path and remains to be exercised. |
 | HTTP security | OPERATIONALLY_CONNECTED | The actual Express app passed HTTP tests for request ID propagation, security headers, origin rejection, body-size rejection and rate limiting. The limiter now ignores spoofable `X-Forwarded-For` unless a deployment explicitly supplies a trusted-proxy key extractor. | Reverse-proxy/TLS policy requires deployment validation. |
-| Audit and provenance | OPERATIONALLY_CONNECTED_IN_SOURCE | Services emit append-only audit events and retain method, source and provenance fields. | Audit-trigger immutability must be exercised against PostgreSQL. |
+| Audit immutability | OPERATOR_VALIDATED | The authorised validator found the immutable `audit_events` trigger and its real `UPDATE` and `DELETE` mutation probes were both rejected by PostgreSQL. | Backup/restore preservation of the trigger remains a separate drill. |
+| Audit and provenance | OPERATIONALLY_CONNECTED_IN_SOURCE | Services emit append-only audit events and retain method, source and provenance fields. | Non-empty controlled persistence and provider-to-PostgreSQL provenance validation remain pending. |
 | Docker / Compose | IMPLEMENTED_PENDING_CONTAINER_VALIDATION | Docker entry point, non-root runtime, port and health paths were corrected in source. | Docker CLI/daemon was unavailable; no image/compose run is claimed. |
 | CI/CD | IMPLEMENTED_PENDING_EXTERNAL_EXECUTION | Workflow source exists. | No GitHub Actions execution was available in this task. |
 | Observability | OPERATIONALLY_CONNECTED | The authorised API returned `/api/v1/health` 200 (`authorized`), `/api/v1/version` 200, `/api/readyz` 200 with `database: ok`, and Prometheus-style `/api/metrics` 200. Request counters/durations changed after a request and no password, API-key, authorization, case-number, or evidence terms were observed. | Deployment scrape and secret-content inspection of a long-running metric stream remain pending. |
@@ -58,19 +59,39 @@
 - Authorised runtime HTTP E2E — PASS for case/investigation reads, AML, graph features, communities, historical DeFi/MEV, readiness and metrics. Controlled empty inputs produced zero findings rather than fabricated intelligence.
 - Representative controlled measurements — case read 119 ms, investigation read 13 ms, AML 26 ms, graph features 17 ms, communities 10 ms, and historical DeFi/MEV 10 ms. These are local single-request observations, not throughput claims.
 
-## Direct PostgreSQL validation command
+## Completed direct PostgreSQL validation
 
-Run the guarded command below only from the authorised PowerShell session that
-already has `DATABASE_URL`. It does not print the connection string, runs the
-migration runner twice, displays the ledger/catalog, and tests both audit-event
-mutation paths without committing a change:
+The guarded validator was run in the authorised PowerShell session with
+`DATABASE_URL` present. It did not print the connection string and produced the
+following real PostgreSQL evidence: first migration pass PASS, idempotency pass
+PASS, complete Phase 0–6 ledger, Phase 6 catalog/index/constraint/foreign-key
+verification, immutable audit trigger present, and both audit `UPDATE` and
+`DELETE` probes rejected.
+
+The repeatable command is:
 
 ```powershell
 pwsh -File .\scripts\validate-phase6-postgres.ps1
 ```
 
-Its output is the required evidence for direct migration, catalog and audit-trigger
-release gates. It must not be replaced with a claim based solely on source review.
+Its output remains the required evidence for future environment validation; it must
+not be replaced with a claim based solely on source review.
+
+## Controlled non-empty Phase 6 validation
+
+`scripts/validate-phase6-nonempty.ps1` creates a separately numbered, explicitly
+marked `VALIDATION_FIXTURE` case only after `-ConfirmCreateValidationFixture` is
+supplied. It creates the case and investigation through the authenticated API as a
+legitimate supervisor, transitions the case/investigation through the normal service
+path, inserts only controlled graph relationship fixtures with
+`CONTROLLED_VALIDATION_FIXTURE` provenance, then invokes the real bounded AML,
+graph-feature, community, historical DeFi/MEV and privileged-report endpoints. It
+also checks the resulting PostgreSQL persistence counts. The script is intentionally
+not evidence of live provider data, criminal activity, ownership, or attribution.
+
+```powershell
+pwsh -File .\scripts\validate-phase6-nonempty.ps1 -ConfirmCreateValidationFixture
+```
 
 ## Final component distinctions
 
@@ -82,7 +103,7 @@ release gates. It must not be replaced with a claim based solely on source revie
 | OIDC deployment | IMPLEMENTED_PENDING_EXTERNAL_VALIDATION | JWT verifier performs JWKS `kid` lookup and cryptographic verification in source/tests. | No issuer/JWKS deployment exercise was available. |
 | Compose | IMPLEMENTED_PENDING_CONTAINER_VALIDATION | Compose source was reviewed with corrected API entry point and health paths. | Docker CLI/daemon is unavailable. |
 | CI/CD | IMPLEMENTED_PENDING_EXTERNAL_EXECUTION | Workflow declares migration replay/idempotency, tests, build, audit and container scan. | No GitHub Actions run was triggered or inspected. |
-| Audit immutability | IMPLEMENTED_PENDING_DATABASE_VALIDATION | Migration/trigger source and service audit calls are present. | `UPDATE`/`DELETE` rejection could not be attempted without the configured database connection. |
+| Audit immutability | OPERATOR_VALIDATED | The authorised PostgreSQL validator confirmed both real mutation paths are rejected. | Restore-drill verification is still pending. |
 | Provenance | OPERATIONALLY_CONNECTED_IN_SOURCE | Provider/analytical repositories persist method/version/source fields; regression tests cover normalisation. | Real provider-to-PostgreSQL path remains pending. |
 | Tests | PASS | Full workspace API suite: 54 passed, 0 failed. | PostgreSQL integration suite requires the missing inherited connection environment. |
 | Build | PASS | API production bundle built successfully. | Container build is separately pending. |
