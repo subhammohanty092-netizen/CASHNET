@@ -1,19 +1,32 @@
 [CmdletBinding()]
 param(
   [Parameter(Mandatory = $true)] [string] $OutputPath,
-  [string] $DatabaseUrl = $env:DATABASE_URL
+  [string] $DatabaseUrl = $env:DATABASE_URL,
+  [string] $PgDumpPath
 )
 
 $ErrorActionPreference = "Stop"
 if ([string]::IsNullOrWhiteSpace($DatabaseUrl)) { throw "DATABASE_URL is required. It is never printed by this script." }
 if ([string]::IsNullOrWhiteSpace($OutputPath)) { throw "OutputPath is required." }
 
+function Resolve-PgDump([string]$RequestedPath) {
+  if (-not [string]::IsNullOrWhiteSpace($RequestedPath)) {
+    $candidate = [string]$RequestedPath
+  } else {
+    $command = Get-Command pg_dump -ErrorAction SilentlyContinue
+    $candidate = if ($null -ne $command) { [string]$command.Source } else { "C:\Program Files\PostgreSQL\18\bin\pg_dump.exe" }
+  }
+  if (-not (Test-Path -LiteralPath $candidate -PathType Leaf)) { throw "pg_dump executable was not found. Install PostgreSQL client tools or provide -PgDumpPath." }
+  return [System.IO.Path]::GetFullPath($candidate)
+}
+
 $resolvedOutput = [System.IO.Path]::GetFullPath($OutputPath)
 $outputDirectory = [System.IO.Path]::GetDirectoryName($resolvedOutput)
 if ([string]::IsNullOrWhiteSpace($outputDirectory)) { throw "OutputPath must include a directory." }
 New-Item -ItemType Directory -Force -Path $outputDirectory | Out-Null
 
-& pg_dump --format=custom --no-owner --no-privileges --file=$resolvedOutput $DatabaseUrl
+$pgDump = Resolve-PgDump $PgDumpPath
+& $pgDump --format=custom --no-owner --no-privileges "--file=$resolvedOutput" $DatabaseUrl
 if ($LASTEXITCODE -ne 0) { throw "pg_dump failed." }
 
 $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $resolvedOutput).Hash.ToLowerInvariant()

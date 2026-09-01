@@ -2,7 +2,8 @@
 param(
   [Parameter(Mandatory = $true)] [string] $BackupPath,
   [Parameter(Mandatory = $true)] [string] $TargetDatabaseUrl,
-  [switch] $ConfirmIsolatedTarget
+  [switch] $ConfirmIsolatedTarget,
+  [string] $PgRestorePath
 )
 
 $ErrorActionPreference = "Stop"
@@ -17,6 +18,18 @@ if (Test-Path -LiteralPath $manifestPath -PathType Leaf) {
 }
 if ($TargetDatabaseUrl -match "[/=:]cashnet([?/#]|$)") { throw "Refusing to restore into the primary cashnet database. Use a separately created temporary target." }
 
-& pg_restore --clean --if-exists --no-owner --no-privileges --dbname=$TargetDatabaseUrl $resolvedBackup
+function Resolve-PgRestore([string]$RequestedPath) {
+  if (-not [string]::IsNullOrWhiteSpace($RequestedPath)) {
+    $candidate = [string]$RequestedPath
+  } else {
+    $command = Get-Command pg_restore -ErrorAction SilentlyContinue
+    $candidate = if ($null -ne $command) { [string]$command.Source } else { "C:\Program Files\PostgreSQL\18\bin\pg_restore.exe" }
+  }
+  if (-not (Test-Path -LiteralPath $candidate -PathType Leaf)) { throw "pg_restore executable was not found. Install PostgreSQL client tools or provide -PgRestorePath." }
+  return [System.IO.Path]::GetFullPath($candidate)
+}
+
+$pgRestore = Resolve-PgRestore $PgRestorePath
+& $pgRestore --clean --if-exists --no-owner --no-privileges "--dbname=$TargetDatabaseUrl" $resolvedBackup
 if ($LASTEXITCODE -ne 0) { throw "pg_restore failed." }
 Write-Output "Restore completed. Next verify the migration ledger, foreign keys, record counts, and audit immutability before any controlled promotion."

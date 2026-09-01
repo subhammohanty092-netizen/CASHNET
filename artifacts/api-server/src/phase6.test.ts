@@ -224,6 +224,22 @@ test("Phase 6.6 report generator produces structured forensic report", () => {
   assert.ok(report.methodVersions["cashnet-aml-risk-engine"]);
 });
 
+test("non-empty Phase 6 validator verifies the persisted community analysis run table", async () => {
+  const validator = await readFile(new URL("../../../../scripts/validate-phase6-nonempty.ps1", import.meta.url), "utf8");
+  assert.match(validator, /FROM community_analysis_runs/i);
+  assert.doesNotMatch(validator, /FROM graph_community_runs/i);
+});
+
+test("backup and restore scripts resolve Windows PostgreSQL executables as scalar paths", async () => {
+  const root = new URL("../../../../", import.meta.url);
+  const backup = await readFile(new URL("scripts/backup-cashnet.ps1", root), "utf8");
+  const restore = await readFile(new URL("scripts/restore-cashnet.ps1", root), "utf8");
+  assert.match(backup, /Get-Command pg_dump/);
+  assert.match(backup, /& \$pgDump/);
+  assert.match(restore, /Get-Command pg_restore/);
+  assert.match(restore, /& \$pgRestore/);
+});
+
 // ── Phase 6.1: Multi-chain provider registration ────────────────────────────
 
 test("Phase 6.1 provider router dispatches all 6 chains", async () => {

@@ -124,7 +124,7 @@ SELECT json_build_object(
   'risk_indicators', (SELECT count(*) FROM risk_indicators WHERE case_id = '$caseId'::uuid AND investigation_id = '$investigationId'::uuid),
   'risk_evidence', (SELECT count(*) FROM risk_indicator_evidence rie JOIN risk_indicators ri ON ri.id = rie.indicator_id WHERE ri.case_id = '$caseId'::uuid AND ri.investigation_id = '$investigationId'::uuid),
   'graph_features', (SELECT count(*) FROM graph_features WHERE case_id = '$caseId'::uuid AND investigation_id = '$investigationId'::uuid),
-  'community_runs', (SELECT count(*) FROM graph_community_runs WHERE case_id = '$caseId'::uuid AND investigation_id = '$investigationId'::uuid),
+  'community_runs', (SELECT count(*) FROM community_analysis_runs WHERE case_id = '$caseId'::uuid AND investigation_id = '$investigationId'::uuid),
   'defi_interactions', (SELECT count(*) FROM defi_protocol_interactions WHERE case_id = '$caseId'::uuid AND investigation_id = '$investigationId'::uuid),
   'mev_candidates', (SELECT count(*) FROM mev_candidates WHERE case_id = '$caseId'::uuid AND investigation_id = '$investigationId'::uuid),
   'reports', (SELECT count(*) FROM forensic_reports WHERE case_id = '$caseId'::uuid AND investigation_id = '$investigationId'::uuid),

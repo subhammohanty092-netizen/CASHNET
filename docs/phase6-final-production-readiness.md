@@ -44,7 +44,7 @@
 | Docker / Compose | IMPLEMENTED_PENDING_CONTAINER_VALIDATION | Docker entry point, non-root runtime, port and health paths were corrected in source. | Docker CLI/daemon was unavailable; no image/compose run is claimed. |
 | CI/CD | IMPLEMENTED_PENDING_EXTERNAL_EXECUTION | Workflow source exists. | No GitHub Actions execution was available in this task. |
 | Observability | OPERATIONALLY_CONNECTED | The authorised API returned `/api/v1/health` 200 (`authorized`), `/api/v1/version` 200, `/api/readyz` 200 with `database: ok`, and Prometheus-style `/api/metrics` 200. Request counters/durations changed after a request and no password, API-key, authorization, case-number, or evidence terms were observed. | Deployment scrape and secret-content inspection of a long-running metric stream remain pending. |
-| Backup / restore | IMPLEMENTED_PENDING_EXECUTION | Guarded PowerShell scripts and a drill procedure exist in [backup-restore.md](backup-restore.md). | No database URL or `pg_dump`/`pg_restore` client was available for a real drill. |
+| Backup / restore | IMPLEMENTED_PENDING_EXECUTION | Guarded Windows-safe PowerShell scripts and an isolated-drill procedure exist in [backup-restore.md](backup-restore.md); PostgreSQL 18 client binaries are available in the operator environment. | The real backup and isolated restore command has not yet been executed and its timestamps/hash/counts must be captured. |
 | Performance / bounds | IMPLEMENTED_PENDING_MEASUREMENT | Graph/community limits and repository SQL result limits are implemented and regression tested. | No representative database workload was available for measurement. |
 
 ## Validation evidence
@@ -91,6 +91,19 @@ not evidence of live provider data, criminal activity, ownership, or attribution
 
 ```powershell
 pwsh -File .\scripts\validate-phase6-nonempty.ps1 -ConfirmCreateValidationFixture
+```
+
+## Guarded backup/restore validation
+
+`scripts/validate-phase6-backup-restore.ps1` is the required safe drill for the
+authorised PostgreSQL environment. It resolves PostgreSQL client paths safely on
+Windows, creates a uniquely named isolated database only after explicit approval,
+backs up `cashnet`, verifies the SHA-256 manifest, restores only to that isolated
+database, checks the ledger and data families, and proves restored audit immutability.
+It neither prints `DATABASE_URL` nor restores over `cashnet`.
+
+```powershell
+pwsh -File .\scripts\validate-phase6-backup-restore.ps1 -ConfirmCreateIsolatedRestoreDatabase
 ```
 
 ## Final component distinctions
