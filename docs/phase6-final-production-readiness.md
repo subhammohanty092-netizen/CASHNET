@@ -3,6 +3,21 @@
 **Date:** 2026-09-01  
 **Scope:** corrective work following `v0.6.0-phase6`; no historical tag was changed. Classifications separate source implementation from executable operational evidence.
 
+## Current decision
+
+- `PHASE_6_IMPLEMENTATION = COMPLETE` — the corrective source work, API contracts,
+  persistence interfaces, security controls, backup/restore tooling, and regression
+  coverage are present and pass the local software validation suite.
+- `PHASE_6_OPERATIONAL_VALIDATION = CONDITIONAL` — the application-level HTTP
+  security probe was executed, but this Codex process did not inherit the authorised
+  `DATABASE_URL`, provider credentials/endpoints, Docker daemon, or CI access needed
+  to execute the remaining environment-dependent gates.
+- `PHASE_6_PRODUCTION_READINESS = BLOCKED` — production readiness requires evidence
+  from clean PostgreSQL replay and persistence flows, audit-trigger immutability,
+  backup/restore, container execution, CI, deployment probes, and authorised provider
+  validation where configured.
+- `PHASE_7 = NOT_STARTED`.
+
 | Component | Status | Actual execution evidence | Remaining limitation |
 | --- | --- | --- | --- |
 | Migration chain and ledger | IMPLEMENTED_PENDING_DATABASE_VALIDATION | The runner registers every Phase 6 migration; regression coverage verifies legacy-table evolution and expression-index design. | This process has no `DATABASE_URL` or PostgreSQL client, so clean replay, second replay, ledger and real constraints were not executed. |
