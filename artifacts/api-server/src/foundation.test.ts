@@ -59,8 +59,8 @@ test("rate limiting middleware rejects excessive real HTTP requests", async () =
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const address = server.address(); assert.ok(address && typeof address !== "string");
   try {
-    assert.equal((await fetch(`http://127.0.0.1:${address.port}/`)).status, 200);
-    const blocked = await fetch(`http://127.0.0.1:${address.port}/`);
+    assert.equal((await fetch(`http://127.0.0.1:${address.port}/`, { headers: { "X-Forwarded-For": "198.51.100.1" } })).status, 200);
+    const blocked = await fetch(`http://127.0.0.1:${address.port}/`, { headers: { "X-Forwarded-For": "198.51.100.2" } });
     assert.equal(blocked.status, 429);
     assert.ok(blocked.headers.get("retry-after"));
   } finally {

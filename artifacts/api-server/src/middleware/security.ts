@@ -75,11 +75,11 @@ interface TokenBucket { tokens: number; lastRefill: number }
 export function rateLimitMiddleware(options: RateLimitOptions): RequestHandler {
   const buckets = new Map<string, TokenBucket>();
   const { windowMs, maxRequests } = options;
-  const keyExtractor = options.keyExtractor ?? ((req: Request) => {
-    return (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim()
-      ?? req.socket.remoteAddress
-      ?? "unknown";
-  });
+  // Do not trust X-Forwarded-For here: without an explicitly configured trusted
+  // reverse proxy, a client can rotate that header to bypass rate limiting.
+  // Deployments that use a proxy must provide an explicit key extractor after
+  // establishing their proxy-trust boundary.
+  const keyExtractor = options.keyExtractor ?? ((req: Request) => req.socket.remoteAddress ?? "unknown");
 
   // Cleanup stale buckets periodically
   setInterval(() => {
