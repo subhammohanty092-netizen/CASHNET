@@ -11,8 +11,9 @@ if ([string]::IsNullOrWhiteSpace($DatabaseUrl)) {
 }
 
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+$psqlCommand = Get-Command psql -ErrorAction SilentlyContinue
 $psqlCandidates = @(
-  (Get-Command psql -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source -ErrorAction SilentlyContinue),
+  $(if ($psqlCommand) { $psqlCommand.Source }),
   "C:\Program Files\PostgreSQL\18\bin\psql.exe"
 ) | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) }
 
@@ -21,7 +22,16 @@ $psql = $psqlCandidates[0]
 
 function Invoke-CashnetPsql {
   param([Parameter(Mandatory = $true)][string] $Sql)
-  & $psql --no-psqlrc --set ON_ERROR_STOP=1 --dbname=$DatabaseUrl --command $Sql
+  # Keep the executable as a single scalar and every psql parameter as one
+  # argument. This avoids PowerShell treating `C:\Program Files\...` as a
+  # command fragment and keeps multi-line SQL intact on PowerShell 5.1 and 7.
+  $psqlArguments = @(
+    "--no-psqlrc",
+    "--set", "ON_ERROR_STOP=1",
+    "--dbname=$DatabaseUrl",
+    "--command", $Sql
+  )
+  & $psql @psqlArguments
   if ($LASTEXITCODE -ne 0) { throw "psql validation command failed." }
 }
 
