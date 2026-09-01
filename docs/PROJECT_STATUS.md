@@ -17,7 +17,7 @@
 - **Non-software gates**: 2 governance/data blockers (not software defects)
   - `DATASET_PENDING_APPROVAL` — address-label dataset requires human governance approval
   - `INSUFFICIENT_GROUND_TRUTH` — no independent held-out evaluation corpus exists
-- **Providers**: 3/3 LIVE_VALIDATED (Esplora, Etherscan V2, TronGrid)
+- **Providers**: the Phase 5 checkpoint records live validation for Esplora, Etherscan V2, and TronGrid; those historical results were not independently re-executed in the current corrective session because this process inherited no provider configuration. Current Phase 6 provider status is recorded in [phase6-final-production-readiness.md](phase6-final-production-readiness.md).
 - **Tests**: 32/32 PASS
 - **Typecheck**: 4/4 workspace projects PASS
 - **Build**: 2.1MB production bundle
