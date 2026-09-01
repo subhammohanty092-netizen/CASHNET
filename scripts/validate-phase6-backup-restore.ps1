@@ -68,7 +68,7 @@ UNION ALL SELECT 'defi_interactions', count(*)::text FROM defi_protocol_interact
 UNION ALL SELECT 'mev_candidates', count(*)::text FROM mev_candidates
 UNION ALL SELECT 'reports', count(*)::text FROM forensic_reports
 UNION ALL SELECT 'audit_events', count(*)::text FROM audit_events
-ORDER BY check;
+ORDER BY 1;
 '@
 
 Invoke-CashnetPsql $psql $targetDatabaseUrl @'

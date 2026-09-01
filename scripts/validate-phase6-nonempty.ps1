@@ -2,7 +2,7 @@
 param(
   [string]$DatabaseUrl = $env:DATABASE_URL,
   [string]$ApiBaseUrl = "http://127.0.0.1:5000",
-  [string]$Actor = "demo.supervisor",
+  [string]$Actor = "demo.admin",
   [string]$PsqlPath,
   [switch]$ConfirmCreateValidationFixture
 )
@@ -110,7 +110,7 @@ Assert-Value ($communities.communities.Count -gt 0) "Controlled fixture did not 
 $defi = Invoke-CashnetApi "POST" "/api/v1/investigations/$investigationId/defi-mev-analysis"
 Assert-Value ($defi.interactions.Count -gt 0 -and $defi.mev.candidates.Count -gt 0) "Controlled fixture did not produce both DeFi and historical MEV candidates."
 $report = Invoke-CashnetApi "POST" "/api/v1/investigations/$investigationId/reports" @{ report_type = "FULL_FORENSIC" }
-Assert-Value ($report.id) "Privileged report generation did not return a persisted report id."
+Assert-Value ($null -ne $report.id) "Privileged report generation did not return a persisted report id."
 $storedReport = Invoke-CashnetApi "GET" "/api/v1/investigations/$investigationId/reports/$($report.id)"
 $sectionTypes = @($storedReport.content.sections | ForEach-Object { [string]$_.type })
 foreach ($requiredSection in @("FACTS", "OBSERVATIONS", "INFERENCES", "ASSESSMENTS", "CONTRADICTIONS", "REVIEW_DECISIONS", "PROVENANCE", "AUDIT")) {

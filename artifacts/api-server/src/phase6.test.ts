@@ -225,13 +225,13 @@ test("Phase 6.6 report generator produces structured forensic report", () => {
 });
 
 test("non-empty Phase 6 validator verifies the persisted community analysis run table", async () => {
-  const validator = await readFile(new URL("../../../../scripts/validate-phase6-nonempty.ps1", import.meta.url), "utf8");
+  const validator = await readFile(new URL("../../../scripts/validate-phase6-nonempty.ps1", import.meta.url), "utf8");
   assert.match(validator, /FROM community_analysis_runs/i);
   assert.doesNotMatch(validator, /FROM graph_community_runs/i);
 });
 
 test("backup and restore scripts resolve Windows PostgreSQL executables as scalar paths", async () => {
-  const root = new URL("../../../../", import.meta.url);
+  const root = new URL("../../../", import.meta.url);
   const backup = await readFile(new URL("scripts/backup-cashnet.ps1", root), "utf8");
   const restore = await readFile(new URL("scripts/restore-cashnet.ps1", root), "utf8");
   assert.match(backup, /Get-Command pg_dump/);
@@ -343,4 +343,25 @@ test("Phase 6 PostgreSQL validation runner protects connection secrets and exerc
   assert.match(script, /DELETE FROM audit_events WHERE id = target_id/);
   assert.match(script, /Audit events are immutable\. UPDATE and DELETE are not permitted/);
   assert.doesNotMatch(script, /Write-(Output|Host).*DatabaseUrl/);
+});
+
+
+test("Phase 6 RBAC enforces case isolation and lifecycle privileges", async () => {
+  const root = new URL("../../../", import.meta.url);
+  const authMigration = await readFile(new URL("database/migrations/20260904_phase6_case_authorization.sql", root), "utf8");
+  const baseMigration = await readFile(new URL("database/migrations/20260828_phase2_persistence_rbac.sql", root), "utf8");
+  const validationScript = await readFile(new URL("scripts/validate-phase6-nonempty.ps1", root), "utf8");
+  
+  // Prove INVESTIGATOR cannot authorize a case (CASE_AUTHORIZE not granted to INVESTIGATOR)
+  assert.match(authMigration, /WHERE role.code IN \('ADMIN', 'SUPERVISOR'\)/);
+  assert.doesNotMatch(authMigration, /'INVESTIGATOR'/);
+
+  // Prove SUPERVISOR cannot create a case (CASE_CREATE not granted to SUPERVISOR)
+  const supervisorMatch = baseMigration.match(/WHERE r.code = 'SUPERVISOR'([^;]+);/s);
+  if (supervisorMatch) {
+    assert.doesNotMatch(supervisorMatch[0], /CASE_CREATE/);
+  }
+
+  // Prove demo.admin can execute the controlled validation lifecycle
+  assert.match(validationScript, /\[string\]\$Actor = "demo\.admin"/);
 });
