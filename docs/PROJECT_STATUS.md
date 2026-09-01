@@ -1,6 +1,6 @@
 # CASHNET — Project Status
 
-## Current Phase: 5 — CLOSED / RELEASED
+## Current Phase: 6 — CORRECTIVE FOLLOW-UP, CONDITIONAL
 
 ## Release History
 
@@ -9,6 +9,7 @@
 | v0.3.0-phase3 | ✅ Tagged | 2026-08-29 | Released |
 | v0.4.0-phase4 | ✅ Tagged | 2026-08-30 | Released |
 | v0.5.0-phase5 | ✅ Tagged | 2026-08-31 | **CLOSED / RELEASED** |
+| v0.6.0-phase6 | ✅ Tagged | 2026-09-01 | Historical checkpoint; corrective commits follow it |
 
 ## Phase 5 Final Gate Summary
 
@@ -24,4 +25,8 @@
 
 ## Phase 6
 
-NOT_STARTED — Phase 5 closure is complete. Phase 6 will not begin in this task.
+The post-tag corrective implementation adds Phase 6 persistence/API wiring, migration compatibility, JWT signature verification, scoped provider lookups, security middleware, metrics, Docker/Compose corrections, and backup/restore scripts. The authoritative current gate is [phase6-final-production-readiness.md](phase6-final-production-readiness.md).
+
+- `IMPLEMENTED` source is not equivalent to production readiness.
+- PostgreSQL replay/persistence, container execution, CI execution, provider live validation, and backup/restore drill remain environment-dependent.
+- Phase 7 is **NOT_STARTED**.
