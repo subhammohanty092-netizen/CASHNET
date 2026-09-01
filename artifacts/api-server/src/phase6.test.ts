@@ -314,9 +314,12 @@ test("Phase 6 PostgreSQL validation runner protects connection secrets and exerc
   const script = await readFile(new URL("scripts/validate-phase6-postgres.ps1", root), "utf8");
   assert.match(script, /DATABASE_URL is required\. It is read only from the launching environment and is never printed/);
   assert.match(script, /pnpm --filter @workspace\/db run migrate/);
-  assert.match(script, /\$psqlArguments = @\(/);
-  assert.match(script, /"--command", \$Sql/);
-  assert.match(script, /& \$psql @psqlArguments/);
+  assert.match(script, /\[string\] \$PsqlPath/);
+  assert.match(script, /\$PsqlPath = \[string\]\$psqlCommand\.Source/);
+  assert.match(script, /C:\\Program Files\\PostgreSQL\\18\\bin\\psql\.exe/);
+  assert.match(script, /\$psql = \[System\.IO\.Path\]::GetFullPath\(\[string\]\$PsqlPath\)/);
+  assert.match(script, /& \$psql --no-psqlrc --set "ON_ERROR_STOP=1" --dbname "\$DatabaseUrl" --command "\$Sql"/);
+  assert.doesNotMatch(script, /@psqlArguments/);
   assert.match(script, /UPDATE audit_events SET action = action/);
   assert.match(script, /DELETE FROM audit_events WHERE id = target_id/);
   assert.match(script, /Audit events are immutable\. UPDATE and DELETE are not permitted/);

@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
   [string] $DatabaseUrl = $env:DATABASE_URL,
-  [switch] $SkipMigrations
+  [switch] $SkipMigrations,
+  [string] $PsqlPath
 )
 
 $ErrorActionPreference = "Stop"
@@ -11,27 +12,26 @@ if ([string]::IsNullOrWhiteSpace($DatabaseUrl)) {
 }
 
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
-$psqlCommand = Get-Command psql -ErrorAction SilentlyContinue
-$psqlCandidates = @(
-  $(if ($psqlCommand) { $psqlCommand.Source }),
-  "C:\Program Files\PostgreSQL\18\bin\psql.exe"
-) | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) }
+if ([string]::IsNullOrWhiteSpace($PsqlPath)) {
+  $psqlCommand = Get-Command psql -ErrorAction SilentlyContinue
+  if ($psqlCommand) { $PsqlPath = [string]$psqlCommand.Source }
+}
+if ([string]::IsNullOrWhiteSpace($PsqlPath) -or -not (Test-Path -LiteralPath $PsqlPath -PathType Leaf)) {
+  $PsqlPath = "C:\Program Files\PostgreSQL\18\bin\psql.exe"
+}
+if (-not (Test-Path -LiteralPath $PsqlPath -PathType Leaf)) { throw "psql was not found. Install PostgreSQL client tools or add psql to PATH." }
 
-if ($psqlCandidates.Count -eq 0) { throw "psql was not found. Install PostgreSQL client tools or add psql to PATH." }
-$psql = $psqlCandidates[0]
+# A scalar full path is mandatory: PowerShell 5.1 can mis-handle a native
+# command discovered through an array/pipeline when its path contains spaces.
+$psql = [System.IO.Path]::GetFullPath([string]$PsqlPath)
 
 function Invoke-CashnetPsql {
   param([Parameter(Mandatory = $true)][string] $Sql)
-  # Keep the executable as a single scalar and every psql parameter as one
-  # argument. This avoids PowerShell treating `C:\Program Files\...` as a
-  # command fragment and keeps multi-line SQL intact on PowerShell 5.1 and 7.
-  $psqlArguments = @(
-    "--no-psqlrc",
-    "--set", "ON_ERROR_STOP=1",
-    "--dbname=$DatabaseUrl",
-    "--command", $Sql
-  )
-  & $psql @psqlArguments
+  # Do not construct a shell command string or use argument-array splatting.
+  # Each quoted expansion remains exactly one native argument on Windows
+  # PowerShell 5.1 and PowerShell 7, including the spaced executable path and
+  # the multi-line SQL argument.
+  & $psql --no-psqlrc --set "ON_ERROR_STOP=1" --dbname "$DatabaseUrl" --command "$Sql"
   if ($LASTEXITCODE -ne 0) { throw "psql validation command failed." }
 }
 
