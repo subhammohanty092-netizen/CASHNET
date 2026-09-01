@@ -58,6 +58,20 @@
 - Authorised runtime HTTP E2E — PASS for case/investigation reads, AML, graph features, communities, historical DeFi/MEV, readiness and metrics. Controlled empty inputs produced zero findings rather than fabricated intelligence.
 - Representative controlled measurements — case read 119 ms, investigation read 13 ms, AML 26 ms, graph features 17 ms, communities 10 ms, and historical DeFi/MEV 10 ms. These are local single-request observations, not throughput claims.
 
+## Direct PostgreSQL validation command
+
+Run the guarded command below only from the authorised PowerShell session that
+already has `DATABASE_URL`. It does not print the connection string, runs the
+migration runner twice, displays the ledger/catalog, and tests both audit-event
+mutation paths without committing a change:
+
+```powershell
+pwsh -File .\scripts\validate-phase6-postgres.ps1
+```
+
+Its output is the required evidence for direct migration, catalog and audit-trigger
+release gates. It must not be replaced with a claim based solely on source review.
+
 ## Final component distinctions
 
 | Component | Status | Actual execution evidence | Remaining limitation |

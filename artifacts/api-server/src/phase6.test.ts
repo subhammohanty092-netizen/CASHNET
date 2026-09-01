@@ -308,3 +308,14 @@ test("Phase 6 provider lookups require investigation scope and reject a chain mi
   assert.match(openApi, /analyzeInvestigationDefiMev/);
   assert.match(openApi, /generateInvestigationForensicReport/);
 });
+
+test("Phase 6 PostgreSQL validation runner protects connection secrets and exercises immutable audit paths", async () => {
+  const root = new URL("../../../", import.meta.url);
+  const script = await readFile(new URL("scripts/validate-phase6-postgres.ps1", root), "utf8");
+  assert.match(script, /DATABASE_URL is required\. It is read only from the launching environment and is never printed/);
+  assert.match(script, /pnpm --filter @workspace\/db run migrate/);
+  assert.match(script, /UPDATE audit_events SET action = action/);
+  assert.match(script, /DELETE FROM audit_events WHERE id = target_id/);
+  assert.match(script, /Audit events are immutable\. UPDATE and DELETE are not permitted/);
+  assert.doesNotMatch(script, /Write-(Output|Host).*DatabaseUrl/);
+});
