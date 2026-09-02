@@ -55,3 +55,15 @@ Thumbs.db
 !.env.example
 references/
 opencode.json
+
+# Local/runtime artifacts
+.pnpm-store/
+server_log.txt
+.debug/
+
+
+# Local/runtime artifacts
+.pnpm-store/
+server_log.txt
+.debug/
+
