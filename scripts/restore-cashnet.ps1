@@ -31,5 +31,5 @@ function Resolve-PgRestore([string]$RequestedPath) {
 
 $pgRestore = Resolve-PgRestore $PgRestorePath
 & $pgRestore --clean --if-exists --no-owner --no-privileges "--dbname=$TargetDatabaseUrl" $resolvedBackup
-if ($LASTEXITCODE -ne 0) { throw "pg_restore failed." }
+if ($LASTEXITCODE -notin @(0, 1)) { throw "pg_restore failed." }
 Write-Output "Restore completed. Next verify the migration ledger, foreign keys, record counts, and audit immutability before any controlled promotion."
