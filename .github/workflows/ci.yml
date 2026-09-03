@@ -30,7 +30,7 @@ jobs:
 
       - uses: pnpm/action-setup@v4
         with:
-          version: latest
+          version: 11.19.0
 
       - uses: actions/setup-node@v4
         with:
@@ -54,21 +54,15 @@ jobs:
       - name: Build
         run: pnpm --filter @workspace/api-server run build
 
-      - name: Verify migrations
-        run: |
-          for f in database/migrations/*.sql; do
-            echo "Validating: $f"
-            psql "$DATABASE_URL" -f "$f"
-          done
+      # This is deliberately the same baseline-plus-ledger runner used by
+      # CASHNET deployments. Do not replace it with a loop over SQL files.
+      - name: Migrate clean PostgreSQL database
+        run: pnpm --filter @workspace/db run migrate
         env:
           DATABASE_URL: postgres://cashnet:test_password@localhost:5432/cashnet_test
 
-      - name: Migration idempotency
-        run: |
-          for f in database/migrations/*.sql; do
-            echo "Idempotency check: $f"
-            psql "$DATABASE_URL" -f "$f"
-          done
+      - name: Prove migration idempotency
+        run: pnpm --filter @workspace/db run migrate
         env:
           DATABASE_URL: postgres://cashnet:test_password@localhost:5432/cashnet_test
 
@@ -83,7 +77,7 @@ jobs:
 
       - uses: pnpm/action-setup@v4
         with:
-          version: latest
+          version: 11.19.0
 
       - uses: actions/setup-node@v4
         with:
@@ -93,15 +87,19 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Dependency audit
+      # High and critical vulnerabilities are release blockers. Low/moderate
+      # advisory noise is deliberately outside this mandatory gate.
+      - name: Dependency audit (high/critical policy)
         run: pnpm audit --audit-level=high
-        continue-on-error: true
 
-      - name: No hardcoded secrets
+      - name: Reject hardcoded secrets
         run: |
-          ! grep -rnI --include='*.ts' --include='*.js' --include='*.json' \
-            -E '(api[_-]?key|secret|password|token)\s*[:=]\s*"[^"]{10,}"' \
-            artifacts/ lib/ scripts/ || true
+          # Unit fixtures intentionally use inert strings such as "configured";
+          # scan deployable source, not test data.
+          if git grep -nI -E '(API[_-]?KEY|SECRET|PASSWORD|TOKEN)[[:space:]]*[:=][[:space:]]*"[^"[:space:]]{10,}"' -- Dockerfile docker-compose.yml .github artifacts lib scripts ':(exclude)*.test.ts'; then
+            echo "Potential hardcoded secret detected. Use server environment configuration instead."
+            exit 1
+          fi
 
   container:
     runs-on: ubuntu-latest
@@ -118,4 +116,4 @@ jobs:
           image-ref: cashnet:ci
           format: table
           severity: CRITICAL,HIGH
-        continue-on-error: true
+          exit-code: '1'

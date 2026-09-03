@@ -1,13 +1,13 @@
 # Phase 6 corrective readiness record
 
-**Date:** 2026-09-01  
+**Date:** 2026-09-03
 **Scope:** corrective work following `v0.6.0-phase6`; no historical tag was changed. Classifications separate source implementation from executable operational evidence.
 
 ## Current decision
 
-- `PHASE_6_IMPLEMENTATION = COMPLETE` — the corrective source work, API contracts,
-  persistence interfaces, security controls, backup/restore tooling, and regression
-  coverage are present and pass the local software validation suite.
+- `PHASE_6_IMPLEMENTATION = INCOMPLETE` — the 2026-09-03 source remediations are
+  present and regression-tested, but their Docker migration orchestration and CI
+  workflow have not yet been executed in their target environments.
 - `PHASE_6_OPERATIONAL_VALIDATION = CONDITIONAL` — the running authorised API was
   exercised against PostgreSQL for AML, graph features, communities and historical
   DeFi/MEV analysis. The operator subsequently completed the real migration, catalog
@@ -18,6 +18,58 @@
   backup/restore, container execution, CI, deployment probes, and authorised provider
   validation where configured.
 - `PHASE_7 = NOT_STARTED`.
+
+## 2026-09-03 source remediation checkpoint
+
+The following audited source defects have been corrected after the historical
+Phase 6 checkpoint. This is **not** container or remote-CI execution evidence.
+
+- Compose now exposes PostgreSQL on configurable host port
+  `CASHNET_POSTGRES_HOST_PORT` (default `55432`) while preserving the internal
+  API connection target `postgres:5432`.
+- Compose has a one-shot `migrate` service that invokes the same
+  `@workspace/db` ledger runner used elsewhere; API startup requires successful
+  migration completion.
+- CI invokes that runner twice against its clean PostgreSQL service. Its secret
+  scan, high/critical dependency audit, and high/critical image scan are
+  blocking gates rather than advisory output.
+- Production authentication rejects all reserved `demo.*` fixture subjects
+  before database role lookup. Development fixture use remains explicitly
+  development-only. See [production-identity-operations.md](production-identity-operations.md).
+- Relationship extraction now canonicalises native BNB, Polygon, and Solana
+  transfers as `BNB`, `POL`, and `SOL`; token-transfer symbols remain unchanged.
+
+Regression coverage was added for all five behaviours. Docker engine execution,
+real CI execution, and authorised database scripts remain evidence gates and
+must not be inferred from these source changes.
+
+### Required external execution evidence
+
+The source changes have deliberately not been presented as Docker or GitHub
+Actions execution. An operator with Docker Desktop and the untracked Compose
+environment may obtain clean, isolated container evidence without touching the
+retained default `pgdata` volume:
+
+```powershell
+Set-Location "C:\\Users\\Subham\\Documents\\Codex\\2026-08-27\\mkdir-references-cd-references-gh-repo\\CASHNET"
+$env:COMPOSE_PROJECT_NAME = "cashnet_phase6_validation"
+$env:CASHNET_POSTGRES_HOST_PORT = "55432"
+# POSTGRES_PASSWORD remains in an untracked environment file; do not echo it.
+docker compose config
+docker compose build --no-cache
+docker compose up -d
+docker compose ps
+Invoke-WebRequest http://127.0.0.1:3000/api/readyz
+docker compose restart api
+docker compose ps
+docker compose logs --tail=200 migrate api postgres
+docker compose down
+```
+
+The project name isolates the validation volume. `docker compose down` (without
+`-v`) preserves it for the restart/idempotency check. A remote GitHub Actions
+run must execute the checked-in workflow; a local YAML/source inspection is not
+CI execution evidence.
 
 | Component | Status | Actual execution evidence | Remaining limitation |
 | --- | --- | --- | --- |

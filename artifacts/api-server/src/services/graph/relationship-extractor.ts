@@ -1,7 +1,16 @@
 import type { GraphRelationshipInput } from "../../repositories/types";
 import type { NormalizedTransactionBundle } from "../blockchain/types";
 
-const nativeAsset: Record<string, string> = { BITCOIN: "BTC", ETHEREUM: "ETH", TRON: "TRX" };
+/** Canonical symbols for native transfers only. Token transfers retain the
+ * asset supplied by their chain-specific normalizer. */
+const nativeAsset: Record<string, string> = {
+  BITCOIN: "BTC",
+  ETHEREUM: "ETH",
+  TRON: "TRX",
+  BNB_CHAIN: "BNB",
+  POLYGON: "POL",
+  SOLANA: "SOL",
+};
 
 /** Converts one normalized, already-collected fact bundle into traceable relationships. */
 export function extractRelationships(bundle: NormalizedTransactionBundle): GraphRelationshipInput[] {

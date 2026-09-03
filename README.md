@@ -45,7 +45,9 @@ See [docs/architecture-current.md](docs/architecture-current.md) for the full di
 | Ethereum | Etherscan V2 | Implemented; live credentials pending | profile, normal/internal transactions, ERC-20 transfers, transaction/block lookup, contract-call metadata where supplied |
 | Bitcoin | Blockstream Esplora-compatible endpoint | Implemented; endpoint pending | profile/history, transaction details, vin/vout, fee, confirmation and UTXO semantics |
 | TRON | TronGrid | Implemented; live credentials pending | account activity, transaction lookup, TRX fields and TRC-20 transfers |
-| BNB Chain, Polygon, Solana | — | Explicitly unsupported placeholders | no fabricated fallback |
+| BNB Chain | BscScan | Implemented; live credentials pending | profile, normal/internal transactions, BEP-20 transfers and transaction/block lookup |
+| Polygon | PolygonScan | Implemented; live credentials pending | profile, normal/internal transactions, ERC-20 transfers and transaction/block lookup |
+| Solana | Approved JSON-RPC endpoint | Implemented; live endpoint pending | account profile, signatures, transactions, SOL/SPL transfers, slots and instruction provenance |
 
 ## Modules and structure
 
@@ -73,7 +75,7 @@ The eight reference checkouts are local, ignored `references/` directories. They
 
 ## Setup
 
-Requirements: Node.js 24, pnpm 11.19.0, and an approved PostgreSQL instance for persistent routes. Docker configuration is not currently provided.
+Requirements: Node.js 22, pnpm 11.19.0, and an approved PostgreSQL instance for persistent routes. Docker Compose is provided for development/staging, but its container execution remains a separate validation gate.
 
 ```bash
 pnpm install --frozen-lockfile
@@ -101,6 +103,21 @@ pnpm --filter @workspace/db run migrate
 ```
 
 For local v1 testing only, enable `CASHNET_DEV_AUTH_ENABLED=true` outside production and send `X-Cashnet-Dev-Actor` for a seeded development user. This is deliberately disabled in production.
+
+Production JWT authentication additionally rejects all reserved `demo.*` fixture identities before database role lookup. Provision a distinct managed identity for every production administrator; see [docs/production-identity-operations.md](docs/production-identity-operations.md).
+
+### Docker Compose development/staging
+
+Docker keeps the API's internal database target at `postgres:5432`. Its host-published PostgreSQL port defaults to `55432`, avoiding a collision with an existing Windows PostgreSQL service on `5432`.
+
+```bash
+# In an untracked .env, set POSTGRES_PASSWORD and optionally CASHNET_POSTGRES_HOST_PORT.
+docker compose up --build
+# Host-side client connection; psql prompts for the password rather than placing it in history.
+psql -h 127.0.0.1 -p 55432 -U cashnet -d cashnet
+```
+
+Compose runs the ledger-backed `@workspace/db` migration job after PostgreSQL is healthy. The API starts only after that job exits successfully. Do not use `docker compose down -v` against a volume containing retained validation or investigation data.
 
 ### Authorized provider mode
 

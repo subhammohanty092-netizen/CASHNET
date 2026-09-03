@@ -6,11 +6,13 @@ import type { Actor } from "../repositories/types";
 
 const DEV_ACTOR_HEADER = "x-cashnet-dev-actor";
 
+export type DevelopmentAuthenticationRuntime = Pick<typeof config, "environment" | "developmentAuthEnabled">;
+
 export class DevelopmentActorAuthenticator {
-  constructor(private readonly users: UserRepository) {}
+  constructor(private readonly users: UserRepository, private readonly runtime: DevelopmentAuthenticationRuntime = config) {}
 
   async authenticate(request: Request): Promise<Actor> {
-    if (config.environment === "production" || !config.developmentAuthEnabled) {
+    if (this.runtime.environment === "production" || !this.runtime.developmentAuthEnabled) {
       throw new UnavailableServiceError("Development authentication is disabled.");
     }
     const rawActor = request.header(DEV_ACTOR_HEADER)?.trim();

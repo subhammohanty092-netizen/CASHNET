@@ -15,6 +15,9 @@ import { readFile } from "node:fs/promises";
 import { JWTAuthenticator } from "./services/auth/jwt-authenticator";
 import { TronGridProvider } from "./services/blockchain/trongrid-provider";
 import { CaseService } from "./services/cases/case-service";
+import { ApplicationAuthenticator } from "./services/auth/application-authenticator";
+import { DevelopmentActorAuthenticator } from "./auth/actor-context";
+import { extractRelationships } from "./services/graph/relationship-extractor";
 
 // ── Test helpers ────────────────────────────────────────────────────────────
 
@@ -278,6 +281,52 @@ test("Phase 6 runtime configuration does not mark Solana configured without an a
   assert.equal(createConfig({ CASHNET_DATA_MODE: "authorized", SOLANA_RPC_URL: "https://approved-rpc.example" }).providers.solana.configured, true);
 });
 
+test("reserved development identities remain usable only in explicitly enabled development authentication", async () => {
+  const demoActor = { id: "demo-admin-id", username: "demo.admin", roles: ["ADMIN"], permissions: ["CASE_CREATE"] } as never;
+  const users = { findActorByUsername: async (username: string) => username === "demo.admin" ? demoActor : null };
+  const development = new DevelopmentActorAuthenticator(users, { environment: "development", developmentAuthEnabled: true });
+  const request = { header: (name: string) => name.toLowerCase() === "x-cashnet-dev-actor" ? "demo.admin" : undefined } as never;
+  assert.equal(await development.authenticate(request), demoActor);
+});
+
+test("production authentication rejects demo identities but permits a verified managed administrator", async () => {
+  const managedAdmin = { id: "managed-admin-id", username: "oidc.admin", roles: ["ADMIN"], permissions: ["CASE_CREATE"] } as never;
+  let lookedUp: string | undefined;
+  const users = { findActorByUsername: async (username: string) => { lookedUp = username; return username === "oidc.admin" ? managedAdmin : null; } };
+  const runtime = { environment: "production" as const, developmentAuthEnabled: false };
+  const bearerRequest = { header: (name: string) => name.toLowerCase() === "authorization" ? "Bearer verified-token" : undefined } as never;
+  const demoJwt = { authenticate: async () => ({ subject: "demo.admin", roles: [], claims: {} }) } as never;
+  await assert.rejects(new ApplicationAuthenticator(users, runtime, demoJwt).authenticate(bearerRequest), /Reserved development identities/);
+  assert.equal(lookedUp, undefined, "a reserved subject must be rejected before database role lookup");
+  const managedJwt = { authenticate: async () => ({ subject: "oidc.admin", roles: [], claims: {} }) } as never;
+  assert.equal(await new ApplicationAuthenticator(users, runtime, managedJwt).authenticate(bearerRequest), managedAdmin);
+  assert.equal(lookedUp, "oidc.admin");
+});
+
+test("relationship extraction canonicalizes every supported native asset without altering token semantics", () => {
+  const nativeRelationship = (chain: string) => extractRelationships({
+    transaction: {
+      chain, transactionHash: `native-${chain}`, from: "source", to: "destination", value: "42", blockNumber: "1", timestamp: "2026-01-01T00:00:00.000Z", executionStatus: "SUCCESS",
+      provenance: { provider: "fixture", retrievedAt: "2026-01-01T00:00:00.000Z", method: "fixture" }, inputs: [], outputs: [],
+    }, tokenTransfers: [], contractInteractions: [],
+  } as never)[0];
+  assert.equal(nativeRelationship("ETHEREUM").asset, "ETH");
+  assert.equal(nativeRelationship("TRON").asset, "TRX");
+  assert.equal(nativeRelationship("BNB_CHAIN").asset, "BNB");
+  assert.equal(nativeRelationship("POLYGON").asset, "POL");
+  assert.equal(nativeRelationship("SOLANA").asset, "SOL");
+  const bitcoin = extractRelationships({
+    transaction: { chain: "BITCOIN", transactionHash: "native-bitcoin", provenance: { provider: "fixture", retrievedAt: "2026-01-01T00:00:00.000Z", method: "fixture" }, inputs: [{ address: "bitcoin-source" }], outputs: [{ address: "bitcoin-destination", value: "42" }] },
+    tokenTransfers: [], contractInteractions: [],
+  } as never)[0];
+  assert.equal(bitcoin.asset, "BTC");
+  const token = extractRelationships({
+    transaction: { chain: "POLYGON", transactionHash: "token-polygon", provenance: { provider: "fixture", retrievedAt: "2026-01-01T00:00:00.000Z", method: "fixture" }, inputs: [], outputs: [] },
+    tokenTransfers: [{ chain: "POLYGON", transactionHash: "token-polygon", from: "source", to: "destination", asset: "USDC", amount: "7", contractAddress: "0xtoken", provenance: { provider: "fixture", retrievedAt: "2026-01-01T00:00:00.000Z", method: "fixture" } }], contractInteractions: [],
+  } as never)[0];
+  assert.equal(token.asset, "USDC");
+});
+
 test("TronGrid transaction lookup uses the shared injected HTTP client POST path", async () => {
   let capturedMethod: string | undefined;
   const config = (await import("./config")).createConfig({ CASHNET_DATA_MODE: "authorized", TRONGRID_API_KEY: "test-key", CASHNET_PROVIDER_MAX_RETRIES: "0" });
@@ -343,6 +392,30 @@ test("Phase 6 PostgreSQL validation runner protects connection secrets and exerc
   assert.match(script, /DELETE FROM audit_events WHERE id = target_id/);
   assert.match(script, /Audit events are immutable\. UPDATE and DELETE are not permitted/);
   assert.doesNotMatch(script, /Write-(Output|Host).*DatabaseUrl/);
+});
+
+test("Compose coordinates the ledger migrator without colliding with host PostgreSQL, and CI enforces migration/security gates", async () => {
+  const root = new URL("../../../", import.meta.url);
+  const [compose, workflow, dockerfile] = await Promise.all([
+    readFile(new URL("docker-compose.yml", root), "utf8"),
+    readFile(new URL(".github/workflows/ci.yml", root), "utf8"),
+    readFile(new URL("Dockerfile", root), "utf8"),
+  ]);
+  assert.match(compose, /\$\{CASHNET_POSTGRES_HOST_PORT:-55432\}:5432/);
+  assert.match(compose, /migrate:[\s\S]*@workspace\/db", "run", "migrate/);
+  assert.match(compose, /condition: service_completed_successfully/);
+  assert.match(compose, /@postgres:5432\/cashnet/);
+  assert.doesNotMatch(compose, /"5432:5432"/);
+  assert.match(workflow, /Migrate clean PostgreSQL database[\s\S]*@workspace\/db run migrate/);
+  assert.match(workflow, /Prove migration idempotency[\s\S]*@workspace\/db run migrate/);
+  assert.doesNotMatch(workflow, /for f in database\/migrations/);
+  assert.doesNotMatch(workflow, /continue-on-error/);
+  assert.doesNotMatch(workflow, /\|\| true/);
+  assert.match(workflow, /Dockerfile docker-compose\.yml \.github artifacts lib scripts/);
+  assert.match(workflow, /:\(exclude\)\*\.test\.ts/);
+  assert.match(workflow, /exit-code: '1'/);
+  assert.match(workflow, /version: 11\.19\.0/);
+  assert.match(dockerfile, /pnpm@11\.19\.0/);
 });
 
 

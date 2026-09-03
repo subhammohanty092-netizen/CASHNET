@@ -5,7 +5,7 @@ FROM node:22-alpine AS builder
 WORKDIR /app
 
 # Install pnpm
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@11.19.0 --activate
 
 # Copy workspace config
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
@@ -26,7 +26,7 @@ RUN pnpm --filter @workspace/api-server run build
 FROM node:22-alpine AS production
 WORKDIR /app
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@11.19.0 --activate
 
 # Non-root user for security
 RUN addgroup -g 1001 cashnet && adduser -u 1001 -G cashnet -s /bin/sh -D cashnet
