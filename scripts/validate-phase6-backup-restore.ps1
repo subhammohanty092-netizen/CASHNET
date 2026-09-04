@@ -1,8 +1,9 @@
 [CmdletBinding()]
 param(
-  [string]$DatabaseUrl = $env:DATABASE_URL,
+  [string]$DatabaseUrl = $env:CASHNET_MIGRATION_DATABASE_URL,
+  [string]$RestoreValidationDatabaseUrl = $env:CASHNET_RESTORE_VALIDATION_DATABASE_URL,
+  [string]$SupabaseCaCertPath = $env:CASHNET_SUPABASE_CA_CERT_PATH,
   [string]$OutputDirectory = (Join-Path $env:TEMP "cashnet-phase6-backup-validation"),
-  [string]$RestoreDatabaseName,
   [switch]$ConfirmCreateIsolatedRestoreDatabase
 )
 
@@ -12,12 +13,15 @@ $ErrorActionPreference = "Stop"
 if (-not $ConfirmCreateIsolatedRestoreDatabase) {
   throw "Refusing to create an isolated restore database. Re-run with -ConfirmCreateIsolatedRestoreDatabase after confirming this is the authorised PostgreSQL environment."
 }
-if ([string]::IsNullOrWhiteSpace($DatabaseUrl)) { throw "DATABASE_URL is required and is never printed." }
+if ([string]::IsNullOrWhiteSpace($DatabaseUrl)) { throw "CASHNET_MIGRATION_DATABASE_URL is required and is never printed." }
+if ([string]::IsNullOrWhiteSpace($RestoreValidationDatabaseUrl)) { throw "CASHNET_RESTORE_VALIDATION_DATABASE_URL for a separately provisioned disposable Supabase project is required and is never printed." }
+if ([string]::IsNullOrWhiteSpace($SupabaseCaCertPath) -or -not (Test-Path -LiteralPath $SupabaseCaCertPath -PathType Leaf)) { throw "CASHNET_SUPABASE_CA_CERT_PATH must identify the Supabase CA PEM. It is not printed." }
+$env:PGSSLROOTCERT = [System.IO.Path]::GetFullPath($SupabaseCaCertPath)
 
-function Resolve-PostgresExecutable([string]$CommandName, [string]$FallbackPath) {
+function Resolve-PostgresExecutable([string]$CommandName) {
   $command = Get-Command $CommandName -ErrorAction SilentlyContinue
-  $candidate = if ($null -ne $command) { [string]$command.Source } else { $FallbackPath }
-  if (-not (Test-Path -LiteralPath $candidate -PathType Leaf)) { throw "$CommandName executable was not found. Install PostgreSQL client tools or add it to PATH." }
+  $candidate = if ($null -ne $command) { [string]$command.Source } else { $null }
+  if ([string]::IsNullOrWhiteSpace($candidate) -or -not (Test-Path -LiteralPath $candidate -PathType Leaf)) { throw "$CommandName client was not found. Add a PostgreSQL client binary to PATH; a local PostgreSQL server is neither used nor required." }
   return [System.IO.Path]::GetFullPath($candidate)
 }
 
@@ -30,29 +34,25 @@ function Invoke-CashnetPsql([string]$Psql, [string]$Url, [string]$Sql, [switch]$
   if ($LASTEXITCODE -ne 0) { throw "psql command failed." }
 }
 
-$psql = Resolve-PostgresExecutable "psql" "C:\Program Files\PostgreSQL\18\bin\psql.exe"
+$psql = Resolve-PostgresExecutable "psql"
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 
-$primaryUri = [uri]$DatabaseUrl
-$primaryDatabase = $primaryUri.AbsolutePath.Trim('/')
-if ([string]::IsNullOrWhiteSpace($primaryDatabase)) { throw "DATABASE_URL must include a database name." }
-if ([string]::IsNullOrWhiteSpace($RestoreDatabaseName)) { $RestoreDatabaseName = "cashnet_phase6_restore_" + [guid]::NewGuid().ToString("N").Substring(0, 12) }
-if ($RestoreDatabaseName -notmatch '^[a-z][a-z0-9_]{0,62}$' -or $RestoreDatabaseName -eq "cashnet") { throw "RestoreDatabaseName must be a new lower-case PostgreSQL identifier and cannot be cashnet." }
+function Get-EndpointIdentity([string]$Url) {
+  $uri = [uri]$Url
+  return "{0}|{1}|{2}|{3}" -f $uri.Host.ToLowerInvariant(), $uri.Port, $uri.AbsolutePath.Trim('/').ToLowerInvariant(), $uri.UserInfo.Split(':')[0].ToLowerInvariant()
+}
 
-$escapedPrimaryDatabase = [regex]::Escape($primaryDatabase)
-$targetDatabaseUrl = [regex]::Replace($DatabaseUrl, "/$escapedPrimaryDatabase(?=\?|$)", "/$RestoreDatabaseName", 1)
-if ($targetDatabaseUrl -eq $DatabaseUrl) { throw "Could not derive a distinct isolated restore connection string." }
+if ((Get-EndpointIdentity $DatabaseUrl) -eq (Get-EndpointIdentity $RestoreValidationDatabaseUrl)) {
+  throw "Restore validation must use a separately provisioned disposable Supabase project/endpoint, never the primary endpoint."
+}
+$targetDatabaseUrl = $RestoreValidationDatabaseUrl
 
-$exists = (Invoke-CashnetPsql $psql $DatabaseUrl "SELECT EXISTS (SELECT 1 FROM pg_database WHERE datname = '$RestoreDatabaseName');" -Quiet).Trim()
-if ($exists -eq "t") { throw "Refusing to use pre-existing database $RestoreDatabaseName. Choose a new name." }
-
-Write-Host "Creating isolated restore database $RestoreDatabaseName (primary cashnet is not modified)."
-Invoke-CashnetPsql $psql $DatabaseUrl "CREATE DATABASE `"$RestoreDatabaseName`";"
+Write-Host "Using separately provisioned disposable Supabase restore endpoint (primary is not modified)."
 
 $timestamp = (Get-Date).ToUniversalTime().ToString("yyyyMMddTHHmmssZ")
 $backupPath = Join-Path $OutputDirectory "cashnet-phase6-$timestamp.backup"
-& (Join-Path $PSScriptRoot "backup-cashnet.ps1") -OutputPath $backupPath -DatabaseUrl $DatabaseUrl
-& (Join-Path $PSScriptRoot "restore-cashnet.ps1") -BackupPath $backupPath -TargetDatabaseUrl $targetDatabaseUrl -ConfirmIsolatedTarget
+& (Join-Path $PSScriptRoot "backup-cashnet.ps1") -OutputPath $backupPath -DatabaseUrl $DatabaseUrl -SupabaseCaCertPath $SupabaseCaCertPath
+& (Join-Path $PSScriptRoot "restore-cashnet.ps1") -BackupPath $backupPath -TargetDatabaseUrl $targetDatabaseUrl -PrimaryDatabaseUrl $DatabaseUrl -SupabaseCaCertPath $SupabaseCaCertPath -ConfirmIsolatedTarget
 
 Write-Host "Verifying restored ledger, required data families, and audit immutability."
 Invoke-CashnetPsql $psql $targetDatabaseUrl @'
@@ -99,5 +99,5 @@ END $validation$;
 '@
 
 $manifestHash = (Get-Content -Raw -LiteralPath "$backupPath.manifest.json" | ConvertFrom-Json).sha256
-Write-Host "PASS: backup=$backupPath manifest_sha256=$manifestHash restore_database=$RestoreDatabaseName"
-Write-Host "The isolated restore database is intentionally retained for inspection. Drop it only under an approved cleanup procedure."
+Write-Host "PASS: backup=$backupPath manifest_sha256=$manifestHash restore_target=separate-supabase-project"
+Write-Host "The disposable restore project is intentionally retained for inspection. Delete it only under an approved cleanup procedure."

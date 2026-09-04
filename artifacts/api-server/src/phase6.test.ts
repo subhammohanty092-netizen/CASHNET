@@ -233,7 +233,7 @@ test("non-empty Phase 6 validator verifies the persisted community analysis run 
   assert.doesNotMatch(validator, /FROM graph_community_runs/i);
 });
 
-test("backup and restore scripts resolve Windows PostgreSQL executables as scalar paths", async () => {
+test("backup and restore scripts use explicit PostgreSQL client binaries without a local-server path assumption", async () => {
   const root = new URL("../../../", import.meta.url);
   const backup = await readFile(new URL("scripts/backup-cashnet.ps1", root), "utf8");
   const restore = await readFile(new URL("scripts/restore-cashnet.ps1", root), "utf8");
@@ -241,6 +241,8 @@ test("backup and restore scripts resolve Windows PostgreSQL executables as scala
   assert.match(backup, /& \$pgDump/);
   assert.match(restore, /Get-Command pg_restore/);
   assert.match(restore, /& \$pgRestore/);
+  assert.doesNotMatch(backup, /Program Files\\PostgreSQL/);
+  assert.doesNotMatch(restore, /Program Files\\PostgreSQL/);
 });
 
 // ── Phase 6.1: Multi-chain provider registration ────────────────────────────
@@ -377,37 +379,60 @@ test("Phase 6 provider lookups require investigation scope and reject a chain mi
   assert.match(openApi, /generateInvestigationForensicReport/);
 });
 
-test("Phase 6 PostgreSQL validation runner protects connection secrets and exercises immutable audit paths", async () => {
+test("Phase 6 PostgreSQL validation runner separates CASHNET privilege denial from administrator trigger enforcement", async () => {
   const root = new URL("../../../", import.meta.url);
   const script = await readFile(new URL("scripts/validate-phase6-postgres.ps1", root), "utf8");
   assert.match(script, /DATABASE_URL is required\. It is read only from the launching environment and is never printed/);
   assert.match(script, /pnpm --filter @workspace\/db run migrate/);
   assert.match(script, /\[string\] \$PsqlPath/);
   assert.match(script, /\$PsqlPath = \[string\]\$psqlCommand\.Source/);
-  assert.match(script, /C:\\Program Files\\PostgreSQL\\18\\bin\\psql\.exe/);
+  assert.doesNotMatch(script, /Program Files\\PostgreSQL/);
   assert.match(script, /\$psql = \[System\.IO\.Path\]::GetFullPath\(\[string\]\$PsqlPath\)/);
-  assert.match(script, /& \$psql --no-psqlrc --set "ON_ERROR_STOP=1" --dbname "\$DatabaseUrl" --command "\$Sql"/);
+  assert.match(script, /CASHNET_VALIDATION_ADMIN_DATABASE_URL/);
+  assert.match(script, /CASHNET_SUPABASE_CA_CERT_PATH/);
+  assert.match(script, /\$env:PGSSLROOTCERT/);
+  assert.match(script, /sslmode=verify-full/);
+  assert.match(script, /&\s+\$psql\s+`?\s*--no-psqlrc\s+`?\s*--set "ON_ERROR_STOP=1"\s+`?\s*--dbname "\$ConnectionString"\s+`?\s*--command "\$Sql"/);
   assert.doesNotMatch(script, /@psqlArguments/);
-  assert.match(script, /UPDATE audit_events SET action = action/);
-  assert.match(script, /DELETE FROM audit_events WHERE id = target_id/);
+  assert.match(script, /pg_catalog\.pg_class/);
+  assert.match(script, /pg_catalog\.pg_namespace/);
+  assert.match(script, /catalog_status/);
+  assert.match(script, /All ten expected Phase 6 tables are present in pg_catalog/);
+  assert.match(script, /Missing expected Phase 6 tables/);
+  assert.match(script, /CASHNET audit SELECT allowed/);
+  assert.match(script, /CASHNET audit UPDATE denied by table privileges/);
+  assert.match(script, /CASHNET audit DELETE denied by table privileges/);
+  assert.match(script, /Administrator audit UPDATE rejected by immutable-audit trigger/);
+  assert.match(script, /Administrator audit DELETE rejected by immutable-audit trigger/);
+  assert.match(script, /WHEN insufficient_privilege/);
+  assert.match(script, /UPDATE\s+audit_events\s+SET\s+action\s*=\s*action/);
+  assert.match(script, /DELETE\s+FROM\s+audit_events\s+WHERE\s+id\s*=\s*target_id/);
   assert.match(script, /Audit events are immutable\. UPDATE and DELETE are not permitted/);
-  assert.doesNotMatch(script, /Write-(Output|Host).*DatabaseUrl/);
+  assert.doesNotMatch(script, /Write-(Output|Host).*(DatabaseUrl|ValidationAdminDatabaseUrl)/);
 });
 
-test("Compose coordinates the ledger migrator without colliding with host PostgreSQL, and CI enforces migration/security gates", async () => {
+test("Compose uses Supabase secrets and a ledger migrator without a local PostgreSQL dependency, while CI keeps disposable migration coverage", async () => {
   const root = new URL("../../../", import.meta.url);
   const [compose, workflow, dockerfile] = await Promise.all([
     readFile(new URL("docker-compose.yml", root), "utf8"),
     readFile(new URL(".github/workflows/ci.yml", root), "utf8"),
     readFile(new URL("Dockerfile", root), "utf8"),
   ]);
-  assert.match(compose, /\$\{CASHNET_POSTGRES_HOST_PORT:-55432\}:5432/);
-  assert.match(compose, /migrate:[\s\S]*@workspace\/db", "run", "migrate/);
+  assert.match(compose, /migrate:[\s\S]*provision-application-role && pnpm --filter @workspace\/db run migrate/);
   assert.match(compose, /condition: service_completed_successfully/);
-  assert.match(compose, /@postgres:5432\/cashnet/);
-  assert.doesNotMatch(compose, /"5432:5432"/);
+  assert.match(compose, /CASHNET_MIGRATION_DATABASE_URL: \$\{CASHNET_MIGRATION_DATABASE_URL:\?Set CASHNET_MIGRATION_DATABASE_URL through the deployment secret manager\}/);
+  assert.match(compose, /DATABASE_URL: \$\{DATABASE_URL:\?Set DATABASE_URL through the deployment secret manager\}/);
+  assert.match(compose, /CASHNET_SUPABASE_CA_CERT_PATH: \/run\/secrets\/cashnet_supabase_ca\.pem/);
+  assert.match(compose, /cashnet_supabase_ca:[\s\S]*file: \$\{CASHNET_SUPABASE_CA_CERT_PATH:/);
+  assert.doesNotMatch(compose, /^\s+postgres:/m);
+  assert.doesNotMatch(compose, /postgres:5432/);
+  assert.doesNotMatch(compose, /POSTGRES_PASSWORD/);
+  assert.doesNotMatch(compose, /pgdata/);
   assert.match(workflow, /Migrate clean PostgreSQL database[\s\S]*@workspace\/db run migrate/);
   assert.match(workflow, /Prove migration idempotency[\s\S]*@workspace\/db run migrate/);
+  assert.match(workflow, /Generate and validate OpenAPI clients[\s\S]*@workspace\/api-spec run codegen/);
+  assert.match(workflow, /CASHNET_DATABASE_TEST_MODE: disposable-postgres/);
+  assert.match(workflow, /NODE_ENV: test/);
   assert.doesNotMatch(workflow, /for f in database\/migrations/);
   assert.doesNotMatch(workflow, /continue-on-error/);
   assert.doesNotMatch(workflow, /\|\| true/);
@@ -437,4 +462,68 @@ test("Phase 6 RBAC enforces case isolation and lifecycle privileges", async () =
 
   // Prove demo.admin can execute the controlled validation lifecycle
   assert.match(validationScript, /\[string\]\$Actor = "demo\.admin"/);
+});
+
+test("Phase 6 provisions only repository-required access for the application role", async () => {
+  const root = new URL("../../../", import.meta.url);
+  const [migration, runner, validator] = await Promise.all([
+    readFile(new URL("database/migrations/20260906_phase6_application_role_privileges.sql", root), "utf8"),
+    readFile(new URL("lib/db/src/migrate.ts", root), "utf8"),
+    readFile(new URL("scripts/validate-phase6-postgres.ps1", root), "utf8"),
+  ]);
+  assert.match(runner, /20260906_phase6_application_role_privileges/);
+  assert.match(runner, /CASHNET_MIGRATION_DATABASE_URL/);
+  assert.match(migration, /grant select on table cashnet_schema_migrations to cashnet/);
+  assert.match(migration, /grant select on table users, roles, permissions, user_roles, role_permissions to cashnet/);
+  assert.match(migration, /grant select, insert, update on table cases, investigations to cashnet/);
+  assert.match(migration, /grant select, insert, update on table wallets, blockchain_transactions to cashnet/);
+  assert.match(migration, /grant select, insert, update on table graph_features to cashnet/);
+  assert.match(migration, /grant select, insert, delete on table cluster_members, attribution_evidence to cashnet/);
+  assert.match(migration, /grant select, insert on table audit_events to cashnet/);
+  assert.doesNotMatch(migration, /grant (?:all|update|delete) on table audit_events/i);
+  assert.match(validator, /has_table_privilege\(\s*current_user,\s*format\('public.%I', required_table\),\s*'SELECT'\s*\)/);
+  assert.match(validator, /CASHNET application role has migration-ledger SELECT privilege/);
+  assert.match(validator, /CASHNET application role has required RBAC SELECT privileges/);
+});
+
+test("Supabase database configuration is environment-driven, TLS-required, and never falls back to local PostgreSQL", async () => {
+  const root = new URL("../../../", import.meta.url);
+  const [environmentExample, drizzleConfig, validator, nonEmptyValidator, provisioner, tlsConfiguration, liveTron, liveProviders] = await Promise.all([
+    readFile(new URL(".env.example", root), "utf8"),
+    readFile(new URL("lib/db/drizzle.config.ts", root), "utf8"),
+    readFile(new URL("scripts/validate-phase6-postgres.ps1", root), "utf8"),
+    readFile(new URL("scripts/validate-phase6-nonempty.ps1", root), "utf8"),
+    readFile(new URL("lib/db/src/provision-application-role.ts", root), "utf8"),
+    readFile(new URL("lib/db/src/supabase-tls.ts", root), "utf8"),
+    readFile(new URL("lib/db/live-tron-test.mjs", root), "utf8"),
+    readFile(new URL("lib/db/live-all-providers.mjs", root), "utf8"),
+  ]);
+  assert.match(environmentExample, /DATABASE_URL=postgresql:\/\/cashnet\.YOUR_PROJECT_REF:/);
+  assert.match(environmentExample, /CASHNET_MIGRATION_DATABASE_URL=postgresql:\/\/postgres:/);
+  assert.match(environmentExample, /sslmode=verify-full/);
+  assert.match(environmentExample, /CASHNET_SUPABASE_CA_CERT_PATH=/);
+  assert.doesNotMatch(environmentExample, /localhost:5432/);
+  assert.doesNotMatch(environmentExample, /POSTGRES_PASSWORD/);
+  assert.match(drizzleConfig, /const migrationDatabaseUrl = process\.env\.CASHNET_MIGRATION_DATABASE_URL/);
+  assert.match(drizzleConfig, /DATABASE_URL is never used as a migration fallback/);
+  assert.match(validator, /must target Supabase, not a local PostgreSQL service/);
+  assert.match(validator, /CASHNET_SUPABASE_CA_CERT_PATH/);
+  assert.match(nonEmptyValidator, /must target Supabase, not a local PostgreSQL service/);
+  assert.match(provisioner, /runtimeUsername\.split\("\.", 1\)\[0\]/);
+  assert.match(provisioner, /applicationRole !== "cashnet"/);
+  assert.match(provisioner, /nosuperuser nocreatedb nocreaterole noinherit/);
+  assert.match(provisioner, /role already exists; its credentials and attributes were not changed/);
+  assert.match(tlsConfiguration, /CASHNET_SUPABASE_CA_CERT_PATH is required/);
+  assert.match(tlsConfiguration, /rejectUnauthorized: true/);
+  assert.match(tlsConfiguration, /servername: parsed\.hostname/);
+  assert.match(tlsConfiguration, /must explicitly use sslmode=verify-full/);
+  assert.match(tlsConfiguration, /The disposable PostgreSQL compatibility connection is restricted to CI test execution/);
+  assert.match(tlsConfiguration, /must use a loopback host/);
+  assert.match(tlsConfiguration, /parsed\.searchParams\.delete\(parameter\)/);
+  assert.doesNotMatch(tlsConfiguration, /rejectUnauthorized:\s*false/);
+  assert.doesNotMatch(tlsConfiguration, /NODE_TLS_REJECT_UNAUTHORIZED/);
+  for (const liveValidator of [liveTron, liveProviders]) {
+    assert.match(liveValidator, /createVerifiedSupabaseConnectionConfig/);
+    assert.doesNotMatch(liveValidator, /new pg\.Pool\(\{ connectionString:/);
+  }
 });

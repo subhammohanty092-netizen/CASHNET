@@ -3,7 +3,10 @@
 **Date:** 2026-08-31
 **Status:** ✅ CLOSED / RELEASED
 **Tag:** `v0.5.0-phase5`
-**Database:** PostgreSQL 18.6 on localhost:5432 (`cashnet`)
+**Historical validation database:** PostgreSQL 18.6 on localhost:5432
+(`cashnet`). This is retained as release evidence only; it is not a current
+CASHNET runtime configuration. Supabase PostgreSQL is the current authoritative
+database target; see [supabase-database-operations.md](supabase-database-operations.md).
 **Runtime:** Node.js 24.11.0 / pnpm / Express / Drizzle ORM
 
 ## Release Decision

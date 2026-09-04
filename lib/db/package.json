@@ -10,7 +10,11 @@
   "scripts": {
     "push": "drizzle-kit push --config ./drizzle.config.ts",
     "push-force": "drizzle-kit push --force --config ./drizzle.config.ts",
-    "migrate": "tsx ./src/migrate.ts"
+    "migrate": "tsx ./src/migrate.ts",
+    "provision-application-role": "tsx ./src/provision-application-role.ts",
+    "test": "tsx --test ./src/**/*.test.ts",
+    "validate:live-tron": "tsx ./live-tron-test.mjs",
+    "validate:live-providers": "tsx ./live-all-providers.mjs"
   },
   "dependencies": {
     "drizzle-orm": "catalog:",

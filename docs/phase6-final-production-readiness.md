@@ -1,13 +1,13 @@
 # Phase 6 corrective readiness record
 
-**Date:** 2026-09-03
+**Date:** 2026-09-04
 **Scope:** corrective work following `v0.6.0-phase6`; no historical tag was changed. Classifications separate source implementation from executable operational evidence.
 
 ## Current decision
 
-- `PHASE_6_IMPLEMENTATION = INCOMPLETE` — the 2026-09-03 source remediations are
-  present and regression-tested, but their Docker migration orchestration and CI
-  workflow have not yet been executed in their target environments.
+- `PHASE_6_IMPLEMENTATION = INCOMPLETE` — the Supabase deployment conversion is
+  implemented in source but has not yet been exercised with an authorised
+  Supabase project/secret context.
 - `PHASE_6_OPERATIONAL_VALIDATION = CONDITIONAL` — the running authorised API was
   exercised against PostgreSQL for AML, graph features, communities and historical
   DeFi/MEV analysis. The operator subsequently completed the real migration, catalog
@@ -24,12 +24,10 @@
 The following audited source defects have been corrected after the historical
 Phase 6 checkpoint. This is **not** container or remote-CI execution evidence.
 
-- Compose now exposes PostgreSQL on configurable host port
-  `CASHNET_POSTGRES_HOST_PORT` (default `55432`) while preserving the internal
-  API connection target `postgres:5432`.
-- Compose has a one-shot `migrate` service that invokes the same
-  `@workspace/db` ledger runner used elsewhere; API startup requires successful
-  migration completion.
+- Compose contains no PostgreSQL service, host port, or database volume. Its
+  one-shot migrator provisions the fixed least-privilege `cashnet` role when
+  absent and invokes the same `@workspace/db` ledger runner used elsewhere;
+  API startup requires successful completion against Supabase.
 - CI invokes that runner twice against its clean PostgreSQL service. Its secret
   scan, high/critical dependency audit, and high/critical image scan are
   blocking gates rather than advisory output.
@@ -46,15 +44,14 @@ must not be inferred from these source changes.
 ### Required external execution evidence
 
 The source changes have deliberately not been presented as Docker or GitHub
-Actions execution. An operator with Docker Desktop and the untracked Compose
-environment may obtain clean, isolated container evidence without touching the
-retained default `pgdata` volume:
+Actions execution. An operator with Docker Desktop and Supabase URLs supplied
+through the deployment secret manager may obtain container evidence without a
+local database service:
 
 ```powershell
 Set-Location "C:\\Users\\Subham\\Documents\\Codex\\2026-08-27\\mkdir-references-cd-references-gh-repo\\CASHNET"
 $env:COMPOSE_PROJECT_NAME = "cashnet_phase6_validation"
-$env:CASHNET_POSTGRES_HOST_PORT = "55432"
-# POSTGRES_PASSWORD remains in an untracked environment file; do not echo it.
+# DATABASE_URL and CASHNET_MIGRATION_DATABASE_URL are injected secrets; do not echo them.
 docker compose config
 docker compose build --no-cache
 docker compose up -d
@@ -62,7 +59,7 @@ docker compose ps
 Invoke-WebRequest http://127.0.0.1:3000/api/readyz
 docker compose restart api
 docker compose ps
-docker compose logs --tail=200 migrate api postgres
+docker compose logs --tail=200 migrate api
 docker compose down
 ```
 
@@ -93,10 +90,10 @@ CI execution evidence.
 | HTTP security | OPERATIONALLY_CONNECTED | The actual Express app passed HTTP tests for request ID propagation, security headers, origin rejection, body-size rejection and rate limiting. The limiter now ignores spoofable `X-Forwarded-For` unless a deployment explicitly supplies a trusted-proxy key extractor. | Reverse-proxy/TLS policy requires deployment validation. |
 | Audit immutability | OPERATOR_VALIDATED | The authorised validator found the immutable `audit_events` trigger and its real `UPDATE` and `DELETE` mutation probes were both rejected by PostgreSQL. | Backup/restore preservation of the trigger remains a separate drill. |
 | Audit and provenance | OPERATIONALLY_CONNECTED_IN_SOURCE | Services emit append-only audit events and retain method, source and provenance fields. | Non-empty controlled persistence and provider-to-PostgreSQL provenance validation remain pending. |
-| Docker / Compose | IMPLEMENTED_PENDING_CONTAINER_VALIDATION | Docker entry point, non-root runtime, port and health paths were corrected in source. | Docker CLI/daemon was unavailable; no image/compose run is claimed. |
+| Docker / Compose | IMPLEMENTED_PENDING_CONTAINER_VALIDATION | Docker entry point, non-root runtime, health paths, Supabase-only environment contract, and one-shot ledger migrator are implemented in source. | No authorised Supabase project/secret context or Docker execution is available to this process. |
 | CI/CD | IMPLEMENTED_PENDING_EXTERNAL_EXECUTION | Workflow source exists. | No GitHub Actions execution was available in this task. |
 | Observability | OPERATIONALLY_CONNECTED | The authorised API returned `/api/v1/health` 200 (`authorized`), `/api/v1/version` 200, `/api/readyz` 200 with `database: ok`, and Prometheus-style `/api/metrics` 200. Request counters/durations changed after a request and no password, API-key, authorization, case-number, or evidence terms were observed. | Deployment scrape and secret-content inspection of a long-running metric stream remain pending. |
-| Backup / restore | IMPLEMENTED_PENDING_EXECUTION | Guarded Windows-safe PowerShell scripts and an isolated-drill procedure exist in [backup-restore.md](backup-restore.md); PostgreSQL 18 client binaries are available in the operator environment. | The real backup and isolated restore command has not yet been executed and its timestamps/hash/counts must be captured. |
+| Backup / restore | IMPLEMENTED_PENDING_EXECUTION | Guarded Windows-safe scripts now require a Supabase migration URL and a distinct disposable Supabase restore endpoint; see [backup-restore.md](backup-restore.md). | No authorised primary and isolated restore Supabase project are available to execute the drill. |
 | Performance / bounds | IMPLEMENTED_PENDING_MEASUREMENT | Graph/community limits and repository SQL result limits are implemented and regression tested. | No representative database workload was available for measurement. |
 
 ## Validation evidence

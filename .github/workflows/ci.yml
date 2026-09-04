@@ -50,6 +50,14 @@ jobs:
         run: pnpm -r --if-present run test
         env:
           DATABASE_URL: postgres://cashnet:test_password@localhost:5432/cashnet_test
+          # Disposable CI-only PostgreSQL compatibility service; production
+          # deployments use Supabase URLs injected by their secret manager.
+          CASHNET_MIGRATION_DATABASE_URL: postgres://cashnet:test_password@localhost:5432/cashnet_test
+          CASHNET_DATABASE_TEST_MODE: disposable-postgres
+          NODE_ENV: test
+
+      - name: Generate and validate OpenAPI clients
+        run: pnpm --filter @workspace/api-spec run codegen
 
       - name: Build
         run: pnpm --filter @workspace/api-server run build
@@ -60,11 +68,17 @@ jobs:
         run: pnpm --filter @workspace/db run migrate
         env:
           DATABASE_URL: postgres://cashnet:test_password@localhost:5432/cashnet_test
+          CASHNET_MIGRATION_DATABASE_URL: postgres://cashnet:test_password@localhost:5432/cashnet_test
+          CASHNET_DATABASE_TEST_MODE: disposable-postgres
+          NODE_ENV: test
 
       - name: Prove migration idempotency
         run: pnpm --filter @workspace/db run migrate
         env:
           DATABASE_URL: postgres://cashnet:test_password@localhost:5432/cashnet_test
+          CASHNET_MIGRATION_DATABASE_URL: postgres://cashnet:test_password@localhost:5432/cashnet_test
+          CASHNET_DATABASE_TEST_MODE: disposable-postgres
+          NODE_ENV: test
 
       - name: Git check
         run: git diff --check

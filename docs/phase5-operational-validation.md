@@ -21,7 +21,7 @@ The repository matrix supplies the inputs and legal boundaries; the operational-
 
 | Gate | Status | Evidence |
 | --- | --- | --- |
-| PostgreSQL migration/persistence | BLOCKED | A running local process reports authorized mode and the user reports a successful migration, but this task has no connection configuration to re-run the ledger/schema checks. Passwordless `psql` fails with `fe_sendauth: no password supplied`. The authenticated failure is isolated to actor lookup before case/investigation mapping; it requires a restart with the diagnostic repair to reveal the PostgreSQL code. |
+| PostgreSQL migration/persistence | HISTORICAL / SUPERSEDED | This pre-Supabase roadmap recorded an earlier local validation constraint. It is not a current runtime configuration or a reason to use local PostgreSQL. The authoritative current target is Supabase; see [supabase-database-operations.md](supabase-database-operations.md). |
 | Etherscan V2 / Esplora / TronGrid live read | PENDING_VALIDATION | No authorized provider configuration is present. |
 | Approved address-label dataset | DATASET_PENDING_APPROVAL | Adapter is implemented but no dataset manifest/path/licence approval is configured. |
 | Controlled rule/metric regression | IMPLEMENTED | Deterministic tests plus `evaluate-phase5` held-out metric utility. |
@@ -30,11 +30,11 @@ The repository matrix supplies the inputs and legal boundaries; the operational-
 | Local bounded performance sample | PASS (non-production) | Twenty v1-health requests completed in 155.56 ms total. |
 | Phase 5 production-like quality gate | VALIDATION_INCOMPLETE | Reproducible database/source/ground-truth evidence is required. |
 
-The migration repair is prepared but not yet live-validated in this task because
-the local PostgreSQL service requires password authentication and no task-level
-`DATABASE_URL` is configured. The candidate engine was also corrected so graph
-evidence is calculated from the candidate address's own stored relationships,
-not the investigation-wide edge count.
+The earlier local PostgreSQL constraint above is retained only to explain this
+historical roadmap. CASHNET's current runtime and migration target is Supabase
+PostgreSQL; it has no local-database fallback. The candidate engine was also
+corrected so graph evidence is calculated from the candidate address's own
+stored relationships, not the investigation-wide edge count.
 
 On 2026-08-30 the API production bundle passed in 1.602 s when the project’s existing esbuild command was allowed normal local filesystem access. This does not satisfy the live-data quality gates.
 

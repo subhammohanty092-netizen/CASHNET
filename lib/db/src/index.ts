@@ -4,6 +4,7 @@ import pg from "pg";
 // Import the concrete module entry point.  A bare directory import is handled
 // by some bundlers, but Node's ESM resolver rejects it at runtime.
 import * as schema from "./schema/index";
+import { createVerifiedSupabaseConnectionConfig } from "./supabase-tls";
 
 const { Pool } = pg;
 
@@ -21,7 +22,7 @@ export function createDatabase(databaseUrl = process.env.DATABASE_URL): {
     throw new Error("DATABASE_URL must be set before persistent API routes can be used.");
   }
 
-  const pool = new Pool({ connectionString: databaseUrl });
+  const pool = new Pool(createVerifiedSupabaseConnectionConfig(databaseUrl));
   return { pool, db: drizzle(pool, { schema }) };
 }
 

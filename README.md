@@ -94,13 +94,36 @@ pnpm --filter @workspace/api-server run dev
 pnpm --filter @workspace/cashnet run dev
 ```
 
-### PostgreSQL and migrations
+### Supabase PostgreSQL and migrations
 
-Set a server-only `DATABASE_URL` for an approved PostgreSQL database, then apply the ledger-backed migrations:
+Supabase PostgreSQL is CASHNET's sole authoritative runtime database. A local
+Windows PostgreSQL service, pgAdmin, and a local PostgreSQL Docker container
+are not required for normal development or deployment. Configure both URLs
+only in the deployment secret manager or an ignored local environment file:
+
+- `DATABASE_URL`: least-privilege `cashnet` application login. Use Supabase's
+  direct URL for persistent backends when IPv6 (or the IPv4 add-on) is
+  available; otherwise use Supavisor **session** mode.
+- `CASHNET_MIGRATION_DATABASE_URL`: privileged Supabase direct URL for role
+  provisioning, the ledger-backed migration runner, `pg_dump`, and restore.
+  Use Supavisor session mode only when direct IPv6 is unavailable.
+
+Both URLs must use `sslmode=verify-full` and the CA PEM referenced by
+`CASHNET_SUPABASE_CA_CERT_PATH`; CASHNET verifies both the certificate chain
+and Supabase hostname. They must never point to
+`localhost`. Provision the initial `cashnet` login once, then apply the
+ledger-backed migrations:
 
 ```bash
+pnpm --filter @workspace/db run provision-application-role
 pnpm --filter @workspace/db run migrate
 ```
+
+The bootstrap command creates `cashnet` only if absent and never changes an
+existing role's password or attributes. The Phase 6 provisioning migration
+grants explicit repository-required access and keeps `audit_events`
+append-only (read/insert only). Never put either URL in the repository or shell
+history. See [Supabase database operations](docs/supabase-database-operations.md).
 
 For local v1 testing only, enable `CASHNET_DEV_AUTH_ENABLED=true` outside production and send `X-Cashnet-Dev-Actor` for a seeded development user. This is deliberately disabled in production.
 
@@ -108,16 +131,19 @@ Production JWT authentication additionally rejects all reserved `demo.*` fixture
 
 ### Docker Compose development/staging
 
-Docker keeps the API's internal database target at `postgres:5432`. Its host-published PostgreSQL port defaults to `55432`, avoiding a collision with an existing Windows PostgreSQL service on `5432`.
+Compose contains only the CASHNET migrator and API. It connects to Supabase;
+it does not start, publish, or depend on a local PostgreSQL container or
+volume. The one-shot migrator must complete before the API starts.
 
 ```bash
-# In an untracked .env, set POSTGRES_PASSWORD and optionally CASHNET_POSTGRES_HOST_PORT.
+# Inject both Supabase URLs through the deployment secret manager or ignored .env.
 docker compose up --build
-# Host-side client connection; psql prompts for the password rather than placing it in history.
-psql -h 127.0.0.1 -p 55432 -U cashnet -d cashnet
 ```
 
-Compose runs the ledger-backed `@workspace/db` migration job after PostgreSQL is healthy. The API starts only after that job exits successfully. Do not use `docker compose down -v` against a volume containing retained validation or investigation data.
+Compose runs the ledger-backed `@workspace/db` role bootstrap and migration job.
+The API starts only after that job exits successfully. Database backups and
+restore drills use Supabase connections and PostgreSQL client tools; see
+[docs/backup-restore.md](docs/backup-restore.md).
 
 ### Authorized provider mode
 

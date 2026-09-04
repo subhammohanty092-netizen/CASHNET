@@ -3,6 +3,7 @@ param(
   [string]$DatabaseUrl = $env:DATABASE_URL,
   [string]$ApiBaseUrl = "http://127.0.0.1:5000",
   [string]$Actor = "demo.admin",
+  [string]$SupabaseCaCertPath = $env:CASHNET_SUPABASE_CA_CERT_PATH,
   [string]$PsqlPath,
   [switch]$ConfirmCreateValidationFixture
 )
@@ -16,6 +17,21 @@ if (-not $ConfirmCreateValidationFixture) {
 if ([string]::IsNullOrWhiteSpace($DatabaseUrl)) {
   throw "DATABASE_URL is required. It is intentionally not printed."
 }
+if ([string]::IsNullOrWhiteSpace($SupabaseCaCertPath) -or -not (Test-Path -LiteralPath $SupabaseCaCertPath -PathType Leaf)) {
+  throw "CASHNET_SUPABASE_CA_CERT_PATH must identify the Supabase CA PEM. It is not printed."
+}
+$env:PGSSLROOTCERT = [System.IO.Path]::GetFullPath($SupabaseCaCertPath)
+try { $databaseUri = [uri]$DatabaseUrl } catch { throw "DATABASE_URL must be a valid PostgreSQL URL." }
+$databaseHost = $databaseUri.Host.ToLowerInvariant()
+if ($databaseHost -in @("localhost", "127.0.0.1", "::1") -or $databaseHost.EndsWith(".local")) {
+  throw "DATABASE_URL must target Supabase, not a local PostgreSQL service."
+}
+if (-not ($databaseHost.EndsWith(".supabase.co") -or $databaseHost.EndsWith(".pooler.supabase.com"))) {
+  throw "DATABASE_URL must use an official Supabase direct or pooler hostname."
+}
+if ($databaseUri.Query -notmatch "(?i)(^|[?&])sslmode=verify-full(&|$)") {
+  throw "DATABASE_URL must require certificate and hostname verification using sslmode=verify-full."
+}
 if ([uri]$ApiBaseUrl -isnot [uri]) {
   throw "ApiBaseUrl must be an absolute HTTP(S) URL."
 }
@@ -25,10 +41,10 @@ function Resolve-Psql([string]$RequestedPath) {
     $candidate = [string]$RequestedPath
   } else {
     $command = Get-Command psql -ErrorAction SilentlyContinue
-    $candidate = if ($null -ne $command) { [string]$command.Source } else { "C:\Program Files\PostgreSQL\18\bin\psql.exe" }
+    $candidate = if ($null -ne $command) { [string]$command.Source } else { $null }
   }
   if (-not (Test-Path -LiteralPath $candidate -PathType Leaf)) {
-    throw "psql executable was not found. Install PostgreSQL client tools or provide -PsqlPath."
+    throw "psql client was not found. Supply -PsqlPath or add a PostgreSQL client binary to PATH; a local PostgreSQL server is neither used nor required."
   }
   return [System.IO.Path]::GetFullPath($candidate)
 }
@@ -36,10 +52,13 @@ function Resolve-Psql([string]$RequestedPath) {
 $psql = Resolve-Psql $PsqlPath
 
 function Invoke-CashnetPsql([string]$Sql, [switch]$Quiet) {
-  $arguments = @("--no-psqlrc", "--set", "ON_ERROR_STOP=1", "--dbname", $DatabaseUrl)
-  if ($Quiet) { $arguments += @("--tuples-only", "--no-align") }
-  # Keep the complete SQL command and the executable path as distinct scalar arguments.
-  & $psql @arguments "--command" $Sql
+  # Keep the complete SQL command and the executable path as distinct scalar
+  # arguments on Windows PowerShell 5.1 and PowerShell 7.
+  if ($Quiet) {
+    & $psql --no-psqlrc --tuples-only --no-align --set "ON_ERROR_STOP=1" --dbname "$DatabaseUrl" --command "$Sql"
+  } else {
+    & $psql --no-psqlrc --set "ON_ERROR_STOP=1" --dbname "$DatabaseUrl" --command "$Sql"
+  }
   if ($LASTEXITCODE -ne 0) { throw "psql command failed." }
 }
 

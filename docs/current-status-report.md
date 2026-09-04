@@ -18,6 +18,13 @@ The current corrective branch passes TypeScript checking, OpenAPI generation, **
 
 ## Environment status
 
+Supabase PostgreSQL is now the intended single authoritative CASHNET runtime
+database. Current source no longer configures the API, Compose, migrations, or
+normal development workflow to use the Windows PostgreSQL service or a local
+PostgreSQL container. Actual Supabase connection, replay, and operational
+evidence require an authorised project URL supplied through the environment;
+none is present in this Codex task context.
+
 The operator's authorised PowerShell session completed the real PostgreSQL validator against `cashnet`: first migration pass, idempotent second pass, complete Phase 0–6 ledger, Phase 6 tables/indexes/constraints/foreign keys, immutable-audit trigger, and real audit `UPDATE`/`DELETE` rejection all passed. This Codex process still does not inherit the secret-bearing connection string, so it does not repeat that command or print the value. Provider credentials/endpoints, Docker CLI/daemon, an approved label dataset, and an independent held-out ground-truth corpus were not supplied to this process; those gates remain precisely classified rather than claimed as passed.
 
 ## Next action

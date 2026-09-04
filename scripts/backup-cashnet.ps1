@@ -1,22 +1,25 @@
 [CmdletBinding()]
 param(
   [Parameter(Mandatory = $true)] [string] $OutputPath,
-  [string] $DatabaseUrl = $env:DATABASE_URL,
+  [string] $DatabaseUrl = $env:CASHNET_MIGRATION_DATABASE_URL,
+  [string] $SupabaseCaCertPath = $env:CASHNET_SUPABASE_CA_CERT_PATH,
   [string] $PgDumpPath
 )
 
 $ErrorActionPreference = "Stop"
-if ([string]::IsNullOrWhiteSpace($DatabaseUrl)) { throw "DATABASE_URL is required. It is never printed by this script." }
+if ([string]::IsNullOrWhiteSpace($DatabaseUrl)) { throw "CASHNET_MIGRATION_DATABASE_URL is required for Supabase backup. It is never printed by this script." }
+if ([string]::IsNullOrWhiteSpace($SupabaseCaCertPath) -or -not (Test-Path -LiteralPath $SupabaseCaCertPath -PathType Leaf)) { throw "CASHNET_SUPABASE_CA_CERT_PATH must identify the Supabase CA PEM. It is not printed." }
 if ([string]::IsNullOrWhiteSpace($OutputPath)) { throw "OutputPath is required." }
+$env:PGSSLROOTCERT = [System.IO.Path]::GetFullPath($SupabaseCaCertPath)
 
 function Resolve-PgDump([string]$RequestedPath) {
   if (-not [string]::IsNullOrWhiteSpace($RequestedPath)) {
     $candidate = [string]$RequestedPath
   } else {
     $command = Get-Command pg_dump -ErrorAction SilentlyContinue
-    $candidate = if ($null -ne $command) { [string]$command.Source } else { "C:\Program Files\PostgreSQL\18\bin\pg_dump.exe" }
+    $candidate = if ($null -ne $command) { [string]$command.Source } else { $null }
   }
-  if (-not (Test-Path -LiteralPath $candidate -PathType Leaf)) { throw "pg_dump executable was not found. Install PostgreSQL client tools or provide -PgDumpPath." }
+  if ([string]::IsNullOrWhiteSpace($candidate) -or -not (Test-Path -LiteralPath $candidate -PathType Leaf)) { throw "pg_dump client was not found. Supply -PgDumpPath or add a PostgreSQL client binary to PATH; a local PostgreSQL server is neither used nor required." }
   return [System.IO.Path]::GetFullPath($candidate)
 }
 

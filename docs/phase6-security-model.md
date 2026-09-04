@@ -117,7 +117,7 @@ Vault/KMS/secret manager (provider-neutral design).
 |---|---|
 | Application role | Least-privilege PostgreSQL role (SELECT, INSERT, UPDATE on app tables) |
 | Migration role | Separate role with DDL permissions |
-| TLS | `sslmode=require` in production connection string |
+| TLS | `sslmode=verify-full`, Supabase project CA PEM, and Node hostname/certificate verification in production connection configuration |
 | Connection pooling | pg pool with max connections, idle timeout |
 | Statement timeout | `statement_timeout = '30s'` for application queries |
 | Transaction timeout | Application-level transaction boundaries |

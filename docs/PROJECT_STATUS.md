@@ -25,6 +25,18 @@
 
 ## Phase 6
 
+### Supabase infrastructure remediation
+
+Supabase PostgreSQL is the intended sole CASHNET runtime database. The current
+Compose deployment no longer contains a PostgreSQL service, volume, local host
+port, or `postgres:5432` runtime dependency. `DATABASE_URL` is reserved for
+the least-privilege `cashnet` runtime login and
+`CASHNET_MIGRATION_DATABASE_URL` for the privileged Supabase migration and
+backup path. This infrastructure change is not itself Supabase execution
+evidence: a supplied, authorised Supabase project must still complete the
+ledger replay, idempotency, audit-trigger, readiness and non-empty validation
+gates. See [supabase-database-operations.md](supabase-database-operations.md).
+
 The post-tag corrective implementation adds Phase 6 persistence/API wiring, migration compatibility, JWT signature verification, scoped provider lookups, security middleware, metrics, Docker/Compose corrections, and backup/restore scripts. The authorised API has executed controlled PostgreSQL-backed AML, graph/community, and historical DeFi/MEV flows. The authorised PostgreSQL validator has now passed migration replay/idempotency, ledger/catalog inspection, and real audit immutability probes; the graph-chain provenance and case-authorisation repairs are applied. The authoritative current gate is [phase6-final-production-readiness.md](phase6-final-production-readiness.md).
 
 - `IMPLEMENTED` source is not equivalent to production readiness.
