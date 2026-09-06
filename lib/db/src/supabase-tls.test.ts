@@ -22,8 +22,20 @@ async function withTestCertificate(run: () => void | Promise<void>) {
   }
 }
 
+async function withSupabaseValidationMode(run: () => void | Promise<void>) {
+  const previous = process.env.CASHNET_DATABASE_TEST_MODE;
+  delete process.env.CASHNET_DATABASE_TEST_MODE;
+  try {
+    await run();
+  } finally {
+    if (previous === undefined) delete process.env.CASHNET_DATABASE_TEST_MODE;
+    else process.env.CASHNET_DATABASE_TEST_MODE = previous;
+  }
+}
+
 test("Supabase PostgreSQL connections supply an explicit CA and preserve hostname verification", async () => {
-  await withTestCertificate(() => {
+  await withSupabaseValidationMode(async () =>
+    withTestCertificate(() => {
     const config = createVerifiedSupabaseConnectionConfig(
       "postgresql://cashnet.project:runtime-password@aws-0-ap-south-1.pooler.supabase.com:5432/postgres?sslmode=verify-full&application_name=cashnet",
     );
@@ -32,34 +44,39 @@ test("Supabase PostgreSQL connections supply an explicit CA and preserve hostnam
     assert.equal(config.ssl && typeof config.ssl !== "boolean" && config.ssl.ca, testCertificate);
     assert.ok(config.connectionString?.includes("application_name=cashnet"));
     assert.ok(!config.connectionString?.includes("sslmode="));
-  });
+    }),
+  );
 });
 
 test("Supabase PostgreSQL configuration rejects local hosts and missing CA material", async () => {
-  await assert.rejects(
+  await withSupabaseValidationMode(async () => {
+    await assert.rejects(
     async () => createVerifiedSupabaseConnectionConfig("postgresql://cashnet:password@localhost:5432/cashnet"),
     /official Supabase direct or pooler hostname/,
   );
 
-  const previous = process.env.CASHNET_SUPABASE_CA_CERT_PATH;
-  delete process.env.CASHNET_SUPABASE_CA_CERT_PATH;
-  try {
-    assert.throws(
+    const previous = process.env.CASHNET_SUPABASE_CA_CERT_PATH;
+    delete process.env.CASHNET_SUPABASE_CA_CERT_PATH;
+    try {
+      assert.throws(
       () => createVerifiedSupabaseConnectionConfig("postgresql://cashnet:password@db.example.supabase.co:5432/postgres?sslmode=verify-full"),
       /CASHNET_SUPABASE_CA_CERT_PATH is required/,
     );
-  } finally {
-    if (previous !== undefined) process.env.CASHNET_SUPABASE_CA_CERT_PATH = previous;
-  }
+    } finally {
+      if (previous !== undefined) process.env.CASHNET_SUPABASE_CA_CERT_PATH = previous;
+    }
+  });
 });
 
 test("Supabase URLs must declare verify-full rather than relying on pg URL defaults", async () => {
-  await withTestCertificate(() => {
+  await withSupabaseValidationMode(async () =>
+    withTestCertificate(() => {
     assert.throws(
       () => createVerifiedSupabaseConnectionConfig("postgresql://cashnet:password@db.example.supabase.co:5432/postgres?sslmode=require"),
       /must explicitly use sslmode=verify-full/,
     );
-  });
+    }),
+  );
 });
 
 test("disposable PostgreSQL is limited to an explicit CI test-only loopback mode", () => {
