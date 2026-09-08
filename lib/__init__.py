@@ -1,1 +1,0 @@
-"""CASHNET shared library package."""

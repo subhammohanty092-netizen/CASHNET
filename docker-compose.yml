@@ -37,9 +37,9 @@ services:
       CASHNET_SUPABASE_CA_CERT_PATH: /run/secrets/cashnet_supabase_ca.pem
       PORT: "3000"
       CASHNET_DATA_MODE: authorized
-      NODE_ENV: development
+      # The image runs with NODE_ENV=production. Keep the development actor
       # header disabled explicitly as a defence-in-depth deployment control.
-      CASHNET_DEV_AUTH_ENABLED: "true"
+      CASHNET_DEV_AUTH_ENABLED: "false"
       CASHNET_PROVIDER_TIMEOUT_MS: "10000"
       CASHNET_PROVIDER_MAX_RETRIES: "2"
       # Provider API keys — set only through the deployment secret manager.
@@ -63,4 +63,3 @@ services:
 secrets:
   cashnet_supabase_ca:
     file: ${CASHNET_SUPABASE_CA_CERT_PATH:?Set CASHNET_SUPABASE_CA_CERT_PATH to the Supabase CA PEM through the deployment secret manager}
-
